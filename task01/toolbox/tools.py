@@ -1,8 +1,6 @@
 import numpy as np  # for matrix computation and linear algebra
-import matplotlib.pyplot as plt  # for drawing and image I/O
 import scipy.io as sio  # for matlab file format output
-import itertools  # for generating all combinations
-import scipy.linalg as slinalg
+
 
 
 def e2p(u_e):
@@ -46,6 +44,24 @@ def sqc(x):
     :return: skew symmetric matrix (3×3) for cross product with x
     """
     return np.array([[0, x[2], -x[1]], [-x[2], 0, x[0]], [x[1], -x[0], 0]])
+
+
+def get_intersect_lines(a1, a2, b1, b2):
+    """
+    Returns the point of intersection of the lines passing through a2,a1 and b2,b1.
+    a1: [x, y] a point on the first line
+    a2: [x, y] another point on the first line
+    b1: [x, y] a point on the second line
+    b2: [x, y] another point on the second line
+    """
+    s = np.vstack([a1, a2, b1, b2])  # s for stacked
+    h = np.hstack((s, np.ones((4, 1))))  # h for homogeneous
+    l1 = np.cross(h[0], h[1])  # get first line
+    l2 = np.cross(h[2], h[3])  # get second line
+    x, y, z = np.cross(l1, l2)  # point of intersection
+    if z == 0:  # lines are parallel
+        return float('inf'), float('inf')
+    return x / z, y / z
 
 
 def EutoRt(E, u1, u2):
