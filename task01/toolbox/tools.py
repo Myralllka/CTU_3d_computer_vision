@@ -61,7 +61,7 @@ def get_intersect_lines(a1, a2, b1, b2):
     x, y, z = np.cross(l1, l2)  # point of intersection
     if z == 0:  # lines are parallel
         return float('inf'), float('inf')
-    return x / z, y / z
+    return [x / z, y / z]
 
 
 def EutoRt(E, u1, u2):
