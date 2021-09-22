@@ -59,7 +59,7 @@ def plt_line_in_rectangle(rect, a_local, b_local, marker='b-'):
         if is_point_on_rect(rect, each):
             cs_new.append(each)
 
-    plt.plot([cs_new[0][0], cs_new[1][0]], [cs_new[0][1], cs_new[1][1]])
+    plt.plot([cs_new[0][0], cs_new[1][0]], [cs_new[0][1], cs_new[1][1]], marker)
 
 
 if __name__ == "__main__":
