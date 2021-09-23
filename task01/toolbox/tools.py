@@ -20,7 +20,7 @@ def p2e(u_p):
     :param u_p: d+1 by n matrix; n homogeneous vectors of dimension d+1
     :return: d by n matrix; n euclidean vectors of dimension d
     """
-    np.array(list(map(lambda x: np.array([x[1] / x[-1], x[2] / x[-1], 1]), u_p)))
+    u_p = np.array(list(map(lambda x: np.array([x[0] / x[-1], x[1] / x[-1], 1]), u_p)))
     return np.delete(u_p, -1, axis=1)
 
 

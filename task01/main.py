@@ -59,7 +59,7 @@ def plt_line_in_rectangle(rect, a_local, b_local, marker='b-'):
         if is_point_on_rect(rect, each):
             cs_new.append(each)
 
-    plt.plot([cs_new[0][0], cs_new[1][0]], [cs_new[0][1], cs_new[1][1]], marker)
+    plt.plot([cs_new[0][0], cs_new[1][0]], [cs_new[0][1], cs_new[1][1]])
 
 
 if __name__ == "__main__":
@@ -99,7 +99,10 @@ if __name__ == "__main__":
     plt_line_in_rectangle(bound_points.T, pts[2], pts[3])
 
     tellme('intersection')
-    # numpy.cross()
+
+    ########################################################
+    ### PART 2
+    ########################################################
 
     fig = plt.figure(2)
     e2p_bounds = e2p(bound_points.T)
@@ -117,16 +120,16 @@ if __name__ == "__main__":
 
     h_pts = p2e(h_pts)
 
-    plt_rectangle(h_bounds[0], h_bounds[1], h_bounds[2], h_bounds[3])
+    plt_rectangle(h_bounds[0], h_bounds[1], h_bounds[2], h_bounds[3], 'k-')
     plt_line_in_rectangle(h_bounds, h_pts[0], h_pts[1])
     plt_line_in_rectangle(h_bounds, h_pts[2], h_pts[3])
 
-    if is_point_in_rect(h_bounds, intersection):
-        e2p_inter = e2p([intersection])
-        h_intersection = p2e(e2p_inter @ H)[0]
+    if is_point_in_rect(bound_points.T, intersection):
+        e2p_inter = e2p([intersection])[0]
+        h_intersection = p2e([H @ e2p_inter])[0]
         plt.plot(h_intersection[0], h_intersection[1], 'ro', mfc='none')
 
-    plt.plot([h_pts[0][0], h_pts[2][0]], [h_pts[0][1], h_pts[2][1]], 'go', mfc='none')
-    plt.plot([h_pts[1][0], h_pts[3][0]], [h_pts[1][1], h_pts[3][1]], 'bo', mfc='none')
+    plt.plot([h_pts[0][0], h_pts[1][0]], [h_pts[0][1], h_pts[1][1]], 'bo', mfc='none')
+    plt.plot([h_pts[2][0], h_pts[3][0]], [h_pts[2][1], h_pts[3][1]], 'go', mfc='none')
 
     plt.show()
