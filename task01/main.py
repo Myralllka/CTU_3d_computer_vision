@@ -1,9 +1,4 @@
-import numpy as np  # for matrix computation and linear algebra
-import matplotlib.pyplot as plt  # for drawing and image I/O
-import matplotlib.patches as patches
-import matplotlib.pyplot as mp
-import scipy.linalg as slinalg
-from toolbox import get_intersect_lines, e2p, p2e
+from toolbox import *
 
 
 def plt_line(p1, p2, marker="b-"):
@@ -79,7 +74,7 @@ if __name__ == "__main__":
                   bound_points.T[3],
                   marker='k-')
 
-    arr = mp.ginput()
+    arr = plt.ginput()
     pts = []
     colors = ['b', 'g', 'r', 'k']
     tellme('Select 2 lines with mouse')
