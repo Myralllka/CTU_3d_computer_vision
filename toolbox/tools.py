@@ -2,7 +2,6 @@ import numpy as np  # for matrix computation and linear algebra
 import scipy.io as sio  # for matlab file format output
 
 
-
 def e2p(u_e):
     """
     Transformation of euclidean to projective coordinates

@@ -59,14 +59,12 @@ def plt_line_in_rectangle(rect, a_local, b_local, marker='b-'):
 
 if __name__ == "__main__":
     fig = plt.figure(1)
+    plt.axis('equal')
     bound_points = np.array([[1, 1, 800, 800], [1, 600, 600, 1]])
 
     H = np.array([[1, 0.1, 0],
                   [0.1, 1, 0],
                   [0.004, 0.002, 1]])
-    # H = [[1, 0, 0],
-    #      [0, 1, 0],
-    #      [0, 0, 1]]
 
     plt_rectangle(bound_points.T[0],
                   bound_points.T[1],
@@ -92,7 +90,7 @@ if __name__ == "__main__":
 
     plt_line_in_rectangle(bound_points.T, pts[0], pts[1])
     plt_line_in_rectangle(bound_points.T, pts[2], pts[3])
-
+    plt.gca().invert_yaxis()
     tellme('intersection')
 
     ########################################################
@@ -100,6 +98,7 @@ if __name__ == "__main__":
     ########################################################
 
     fig = plt.figure(2)
+    plt.axis('equal')
     e2p_bounds = e2p(bound_points.T)
     h_bounds = []
     h_pts = []
@@ -126,5 +125,5 @@ if __name__ == "__main__":
 
     plt.plot([h_pts[0][0], h_pts[1][0]], [h_pts[0][1], h_pts[1][1]], 'bo', mfc='none')
     plt.plot([h_pts[2][0], h_pts[3][0]], [h_pts[2][1], h_pts[3][1]], 'go', mfc='none')
-
+    plt.gca().invert_yaxis()
     plt.show()
