@@ -9,40 +9,22 @@ EPSILON = 5
 random.seed(1)
 
 
-def fit_line_ransac(Xs, Ys, iterations=ITERATIONS, epsilon=EPSILON):
-    best_score = 0
-    best_points = []
-    pts = e2p(np.array([Xs, Ys]).T)
-    for index in range(iterations):
-        p1, p2 = random.sample(range(iterations), 2)
-        p1, p2 = pts[p1], pts[p2]
-        l = np.cross(p1, p2)
-        l_norm = np.array([l / np.sqrt(l[0] ** 2 + l[1] ** 2)])
-        distances = l_norm @ pts.T
-        bools = abs(distances[0]) < epsilon
-        distances_trashold = distances[0][bools]
-        score = sum(distances_trashold)
-        if best_score < score:
-            best_score = score
-            best_points = [p1, p2]
-    return best_points
+def ransac(Pts, Distances):
+    return Pts.shape[0], None
 
 
 def ransac_lsqr(Pts, Distances):
-    score = 0
-    line = [1, 2]
-
-    return score, line
+    score = Pts.shape[0]
+    return score, np.polyfit(Pts.T[0], Pts.T[1], deg=1)
 
 
 def mlesac_lsqr(Pts, Distances):
-    score = 0
-    line = [1, 2]
-
-    return score, line
+    score = sum(1 - (Distances ** 2) / EPSILON ** 2)
+    return score, np.polyfit(Pts.T[0], Pts.T[1], deg=1)
 
 
 def fit_line_sac(Xs, Ys, vote_func, iterations=ITERATIONS, epsilon=EPSILON):
+    random.seed(2)
     best_support = 0
     best_points = []
     pts = e2p(np.array([Xs, Ys]).T)
@@ -59,35 +41,11 @@ def fit_line_sac(Xs, Ys, vote_func, iterations=ITERATIONS, epsilon=EPSILON):
         score, line = vote_func(pts_treshold, distances_threshold)
         if best_support < score:
             best_support = score
-            best_points = line
-        # if best_support < sum(distances_threshold):
-        #     best_support = sum(distances_threshold)
-        #     k, b = np.polyfit(pts_treshold.T[0], pts_treshold.T[1], deg=1)
-        #     best_points_kb = [p1, p2, k, b]
+            if line is None:
+                best_points = [p1, p2]
+            else:
+                best_points = line
     return best_points[0], best_points[1]
-
-
-#
-#
-# def fit_line_mlesac_lsqr(Xs, Ys, iterations=ITERATIONS, epsilon=EPSILON):
-#     best_support = 0
-#     best_points_kb = []
-#     pts = e2p(np.array([Xs, Ys]).T)
-#     for index in range(iterations):
-#         p1, p2 = random.sample(range(iterations), 2)
-#         p1, p2 = pts[p1], pts[p2]
-#         l = np.cross(p1, p2)
-#         l_norm = np.array([l / np.sqrt(l[0] ** 2 + l[1] ** 2)])
-#         distances = l_norm @ pts.T
-#         bools = abs(distances[0]) < epsilon
-#         distances_threshold = 1 - (distances[0][bools] ** 2) / epsilon ** 2
-#         pts_treshold = pts[bools]
-#         if best_support < sum(distances_threshold[0]):
-#             best_support = distances_threshold.shape[0]
-#             k, b = np.polyfit(pts_treshold.T[0], pts_treshold.T[1], deg=1)
-#             best_points_kb = [p1, p2, k, b]
-#
-#     return best_points_kb[2], best_points_kb[3]
 
 
 if __name__ == "__main__":
@@ -110,7 +68,7 @@ if __name__ == "__main__":
     plt.plot(x, y, 'y-', label="lstqt")
 
     # plot ransac fitting line
-    p1, p2 = fit_line_ransac(points[0], points[1])
+    p1, p2 = fit_line_sac(points[0], points[1], ransac)
     line = np.cross(p1, p2)
     y = np.array([0, 300])
     x = (-line[2] / line[0]) + (-line[1] / line[0]) * y
@@ -122,13 +80,13 @@ if __name__ == "__main__":
     y = np.array([0, 300])
     x = (-line[2] / line[0]) + (-line[1] / line[0]) * y
     plt.plot(x, y, 'g-', label="ransac + lstqt")
-    #
-    # # Plot mlesac + lst sqr
-    # k, b = fit_line_ransac_lsqr(points[0], points[1])
-    # line = [k, -1, b]
-    # y = np.array([0, 300])
-    # x = (-line[2] / line[0]) + (-line[1] / line[0]) * y
-    # plt.plot(x, y, 'c-', label="mlesac + lstqt")
+
+    # Plot mlesac + lst sqr
+    k, b = fit_line_sac(points[0], points[1], mlesac_lsqr)
+    line = [k, -1, b]
+    y = np.array([0, 300])
+    x = (-line[2] / line[0]) + (-line[1] / line[0]) * y
+    plt.plot(x, y, 'c-', label="mlesac + lstqt")
 
     plt.legend()
     plt.axis([-50, 500, -100, 400])
