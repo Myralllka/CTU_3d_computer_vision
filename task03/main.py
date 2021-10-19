@@ -6,7 +6,7 @@ from toolbox import *
 
 ITERATIONS = 100
 EPSILON = 5
-random.seed(1)
+#random.seed(1)
 
 
 def ransac(Pts, Distances):
@@ -36,9 +36,9 @@ def fit_line_sac(Xs, Ys, vote_func, iterations=ITERATIONS, epsilon=EPSILON):
         distances = l_norm @ pts.T
         bools = abs(distances[0]) < epsilon
         distances_threshold = distances[0][bools]
-        pts_treshold = pts[bools]
+        pts_threshold = pts[bools]
 
-        score, line = vote_func(pts_treshold, distances_threshold)
+        score, line = vote_func(pts_threshold, distances_threshold)
         if best_support < score:
             best_support = score
             if line is None:
