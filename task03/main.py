@@ -6,7 +6,6 @@ from toolbox import *
 
 ITERATIONS = 100
 EPSILON = 5
-#random.seed(1)
 
 
 def ransac(Pts, Distances):
