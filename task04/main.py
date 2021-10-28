@@ -1,80 +1,132 @@
-import random
+import matplotlib.pyplot as plt
+import numpy as np
 
 import toolbox
 from toolbox import *
-import scipy.linalg as lin_alg
+
+THETA = 2
 
 
-def u2H(u1, u2):
-    """
-    :param u1:  (3×4) the image coordinates of points in the first image (3×4 matrix/np.array)
-    :param u2: (3×4) the image coordinates of the corresponding points in the second image.
-    :return: H: a 3×3 homography matrix (np.array), or an empty array [] if there is no solution.
-    """
-    M = list()
-    # u1 = u1.T
-    # u2 = u2.T
-
-    for i in range(len(u1)):
-        m = np.r_[u1[i], [0, 0, 0], -u1[i] * u2[i][0]]
-        M.append(m)
-
-    for i in range(len(u1)):
-        m = np.r_[[0, 0, 0], u1[i], -u1[i] * u2[i][1]]
-        M.append(m)
-
-    H = lin_alg.null_space(M)
-
-    if H.size == 0 or np.linalg.matrix_rank(M) != 8:
-        return []
-    return (H / H[-1]).reshape(3, 3)
+def homography_score(H, points_original_plain_euclidean, points_other_plain_euclidean, idxs_relations):
+    points_xH = H @ e2p(points_original_plain_euclidean)
+    points_xH = p2e(points_xH)
+    dist = [np.linalg.norm(points_xH.T[relation[0]] - points_other_plain_euclidean.T[relation[1]])
+            for relation in idxs_relations]
+    tmp = np.array(dist) < THETA
+    return tmp
 
 
-def ransac_H(array_points_1, array_points_2, relation_idxs, iterations=10000):
-    indexes = range(len(relation_idxs))
-    array_points_1 = e2p(array_points_1.T).T
-    array_points_2 = e2p(array_points_2.T).T
+def ransac_H(points_img_1_euclidean, points_img_2_euclidean, idxs_input_relations, iterations=1000):
+    points_img_1_projective = e2p(points_img_1_euclidean)
+    points_img_2_projective = e2p(points_img_2_euclidean)
+
+    best_score = 0
+
+    best_inliers_Ha = []
+    best_inliers_Hb = []
+    best_outliers_Hb = []
+    best_a = []
 
     for i in range(iterations):
-        current_idxs = relation_idxs[random.sample(indexes, 4)]
+        # compute the temporary Ha
+        idxs_first_homography = idxs_input_relations[random.sample(range(idxs_input_relations.shape[0]), 4)]
 
-        current_pts_1 = array_points_1.T[current_idxs.T[0]]
-        current_pts_2 = array_points_2.T[current_idxs.T[1]]
+        pts4Ha_img1 = points_img_1_projective.T[idxs_first_homography.T[0]].T
+        pts4Ha_img2 = points_img_2_projective.T[idxs_first_homography.T[1]].T
 
-        current_Ha = np.array(u2H(current_pts_1, current_pts_2))
-        # print(current_Ha.s)
-        if current_Ha.size > 0:
-            points_1xHa_2 = current_Ha @ array_points_1
-            current_Ha__1 = np.linalg.inv(current_Ha)
-            points_2xHa__1_1 = current_Ha__1 @ array_points_2
+        Ha = u2H(pts4Ha_img1, pts4Ha_img2)
+        try:
+            Ha_inv = np.linalg.inv(Ha)
+        except:
+            continue
+        # compute Ha inliers
 
-            for re_idx in relation_idxs:
-                print(re_idx)
+        tmp = homography_score(Ha, points_img_1_euclidean, points_img_2_euclidean, idxs_input_relations)
 
-            # errors_12 = points_1_Ha_2 - array_points_2
-            # errors_21 = points_2_Ha__1_1 - array_points_1
-            # print(errors_21)
+        idxs_Ha_outliers = idxs_input_relations[~tmp]
+        idxs_Ha_inliers = idxs_input_relations[tmp]
+
+        # estimate H
+        idxs_second_homography = idxs_Ha_outliers[random.sample(range(idxs_Ha_outliers.shape[0]), 3)]
+        pts4H_img1 = points_img_1_projective.T[idxs_second_homography.T[0]].T
+        pts4H_img2 = points_img_2_projective.T[idxs_second_homography.T[1]].T
+
+        us = Ha_inv @ pts4H_img2
+        us /= us[2]
+        us_prime = pts4H_img1
+
+        v = np.cross(np.cross(us[:, 0].T, us_prime[:, 0].T), np.cross(us[:, 1].T, us_prime[:, 1].T))
+        # construct matrix A...
+
+        A = np.array([(us_prime[0][0] * v[2] - us_prime[2][0] * v[0]) * us[:, 0].T,
+                      (us_prime[0][1] * v[2] - us_prime[2][1] * v[0]) * us[:, 1].T,
+                      (us_prime[0][2] * v[2] - us_prime[2][2] * v[0]) * us[:, 2].T])
+
+        ## Now - vector b
+        b = np.array([[us[0][0] * us_prime[2][0] - us[2][0] * us_prime[0][0]],
+                      [us[0][1] * us_prime[2][1] - us[2][1] * us_prime[0][1]],
+                      [us[0][2] * us_prime[2][2] - us[2][2] * us_prime[0][2]]])
+
+        ## a = A.inv @ b
+        try:
+            a = np.linalg.inv(A) @ b
+        except:
+            continue
+        # Finally  H == I + v @ a.T, Hb = H @ Ha_inv
+        H = np.eye(3) + np.outer(v, a)
+
+        Hb = np.linalg.inv(H @ Ha_inv)
+
+        tmp = homography_score(Hb, points_img_1_euclidean, points_img_2_euclidean, idxs_Ha_outliers)
+
+        idxs_Hb_outliers = idxs_Ha_outliers[~tmp]
+        idxs_Hb_inliers = idxs_Ha_outliers[tmp]
+
+        score = idxs_Ha_inliers.shape[0] + idxs_Hb_inliers.shape[0]
+        if score > best_score:
+            best_score = score
+            best_a = a
+            best_inliers_Ha = idxs_Ha_inliers
+            best_inliers_Hb = idxs_Hb_inliers
+            best_outliers_Hb = idxs_Hb_outliers
+
+    return best_a, best_inliers_Ha, best_inliers_Hb, best_outliers_Hb
 
 
 if __name__ == "__main__":
-    # Firstly I will start with pair 1 and 2
-    fig = plt.figure(1)
+    book1 = 2
+    book2 = 3
+    points_book1 = np.loadtxt('task04/data/books_u{}.txt'.format(book1)).T
+    points_book2 = np.loadtxt('task04/data/books_u{}.txt'.format(book2)).T
+    points_1_2_relations = np.loadtxt('task04/data/books_m{}{}.txt'.format(book1, book2), dtype=int)
 
-    points_book1 = np.loadtxt('task04/data/books_u1.txt').T
-    points_book2 = np.loadtxt('task04/data/books_u2.txt').T
-    points_1_2_relations = np.loadtxt('task04/data/books_m12.txt', dtype=int)
+    img1 = plt.imread('task04/imgs/book{}.png'.format(book1))
+    img2 = plt.imread('task04/imgs/book{}.png'.format(book2))
+    img1 = img1.copy()
+    img2 = img2.copy()
 
-    book1_img = plt.imread('task04/imgs/book1.png')
-    book2_img = plt.imread('task04/imgs/book2.png')
-    book1_img = book1_img.copy()
-    book2_img = book2_img.copy()
+    line, inliers_Ha, inliers_Hb, outliers_Hb = ransac_H(points_book1, points_book2, points_1_2_relations,
+                                                         iterations=1000)
 
-    plt.plot(points_book1[0], points_book1[1], 'r.')
-    plt.imshow(book1_img)
+    plt.imshow(img1)
 
-    fig = plt.figure(2)
-    plt.plot(points_book2[0], points_book2[1], 'r.')
+    a = points_book1[:, outliers_Hb[:, 0]]
+    b = points_book2[:, outliers_Hb[:, 1]]
+    plt.plot(a[0], a[1], 'k.', markersize=.8)
+    plt.plot([a[0], b[0]], [a[1], b[1]], 'k-', linewidth=.2)
 
-    ransac_H(points_book1, points_book2, points_1_2_relations)
-    # plt.imshow(book2_img)
-    # plt.show()
+    a = points_book1[:, inliers_Ha[:, 0]]
+    b = points_book2[:, inliers_Ha[:, 1]]
+    plt.plot(a[0], a[1], 'c.')
+    plt.plot([a[0], b[0]], [a[1], b[1]], 'c-')
+
+    a = points_book1[:, inliers_Hb[:, 0]]
+    b = points_book2[:, inliers_Hb[:, 1]]
+    plt.plot(a[0], a[1], 'r.')
+    plt.plot([a[0], b[0]], [a[1], b[1]], 'r-')
+
+    y = np.array([0, 1000])
+    x = (-line[2] / line[0]) + (-line[1] / line[0]) * y
+    plt.plot(x, y, 'm-', label="ransac", linewidth=2)
+    plt.imshow(img1)
+    plt.show()

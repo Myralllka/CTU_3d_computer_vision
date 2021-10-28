@@ -1,5 +1,5 @@
 import numpy as np  # for matrix computation and linear algebra
-import scipy.io as sio  # for matlab file format output
+import scipy.linalg as lin_alg
 
 
 def e2p(u_e):
@@ -9,7 +9,9 @@ def e2p(u_e):
     :param u_e: d by n matrix; n euclidean vectors of dimension d
     :return: d+1 by n matrix; n homogeneous vectors of dimension d+1
     """
-    return np.c_[u_e, np.ones(len(u_e))]
+    return np.vstack((u_e, np.ones(u_e.shape[1])))
+    # For tasks before 0.4
+    # return np.c_[u_e, np.ones(len(u_e))]
 
 
 def p2e(u_p):
@@ -19,8 +21,40 @@ def p2e(u_p):
     :param u_p: d+1 by n matrix; n homogeneous vectors of dimension d+1
     :return: d by n matrix; n euclidean vectors of dimension d
     """
-    u_p = np.array(list(map(lambda x: np.array([x[0] / x[-1], x[1] / x[-1], 1]), u_p)))
-    return np.delete(u_p, -1, axis=1)
+
+    u_p /= u_p[2]
+    return u_p[:-1]
+
+    # For tasks before 0.4
+    # u_p = np.array(list(map(lambda x: np.array([x[0] / x[-1], x[1] / x[-1], 1]), u_p)))
+    # return np.delete(u_p, -1, axis=1)
+
+
+def u2H(u1, u2):
+    """
+    :param u1:  (3×4) the image coordinates of points in the first image (3×4 matrix/np.array)
+    :param u2: (3×4) the image coordinates of the corresponding points in the second image.
+    :return: H: a 3×3 homography matrix (np.array), or an empty array [] if there is no solution.
+    """
+    M = list()
+    # u1 = u1.T
+    # u2 = u2.T
+
+    for i in range(u1.shape[1]):
+        m = np.r_[u1[:, i], [0, 0, 0], -u1[:, i] * u2[0][i]]
+        M.append(m)
+        m = np.r_[[0, 0, 0], u1[:, i], -u1[:, i] * u2[1][i]]
+        M.append(m)
+
+    # for i in range(len(u1)):
+    #     m = np.r_[[0, 0, 0], u1[:, i], -u1[:, i] * u2[1][i]]
+    #     M.append(m)
+    M = np.array(M)
+    H = lin_alg.null_space(M)
+
+    if H.size == 0 or np.linalg.matrix_rank(M) != 8:
+        return []
+    return (H / H[-1]).reshape(3, 3)
 
 
 def vlen(x):
