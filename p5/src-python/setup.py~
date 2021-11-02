@@ -1,0 +1,15 @@
+from distutils.core import setup, Extension
+import numpy.distutils
+
+dip_ext = Extension( 'dip.ext',
+                    libraries = [], #'gsl'],
+                    include_dirs = ['../include'] +
+                    numpy.distutils.misc_util.get_numpy_include_dirs(),
+                    sources = [ 'dip_ext.cpp', '../src/icub2.cpp' ],
+                    extra_compile_args = [ '-g' ]
+                     )
+
+setup( name = 'DIP',
+        version = '1.0',
+        description = 'DIP library C++ extensions',
+        ext_modules = [ dip_ext ] )
