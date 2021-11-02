@@ -4,7 +4,7 @@ import numpy as np
 import toolbox
 from toolbox import *
 
-THETA = 2
+THETA = 3
 
 
 def homography_score(H, points_original_plain_euclidean, points_other_plain_euclidean, idxs_relations):
@@ -94,14 +94,14 @@ def ransac_H(points_img_1_euclidean, points_img_2_euclidean, idxs_input_relation
 
 
 if __name__ == "__main__":
-    book1 = 2
-    book2 = 3
-    points_book1 = np.loadtxt('task04/data/books_u{}.txt'.format(book1)).T
-    points_book2 = np.loadtxt('task04/data/books_u{}.txt'.format(book2)).T
-    points_1_2_relations = np.loadtxt('task04/data/books_m{}{}.txt'.format(book1, book2), dtype=int)
+    book1 = 1
+    book2 = 2
+    points_book1 = np.loadtxt('task04_two_homographies/data/books_u{}.txt'.format(book1)).T
+    points_book2 = np.loadtxt('task04_two_homographies/data/books_u{}.txt'.format(book2)).T
+    points_1_2_relations = np.loadtxt('task04_two_homographies/data/books_m{}{}.txt'.format(book1, book2), dtype=int)
 
-    img1 = plt.imread('task04/imgs/book{}.png'.format(book1))
-    img2 = plt.imread('task04/imgs/book{}.png'.format(book2))
+    img1 = plt.imread('task04_two_homographies/imgs/book{}.png'.format(book1))
+    img2 = plt.imread('task04_two_homographies/imgs/book{}.png'.format(book2))
     img1 = img1.copy()
     img2 = img2.copy()
 

@@ -56,7 +56,7 @@ if __name__ == "__main__":
     plt.plot(x, y, 'k-', label="original")
 
     # Plot input points with noise
-    points = np.loadtxt('task03/data/linefit_3.txt').T
+    points = np.loadtxt('task03_ransac_of_line/data/linefit_3.txt').T
     plt.plot(points[0], points[1], '.')
 
     # Fit the line using non-robust approach
