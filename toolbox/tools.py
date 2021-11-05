@@ -22,7 +22,7 @@ def p2e(u_p):
     :return: d by n matrix; n euclidean vectors of dimension d
     """
 
-    u_p /= u_p[2]
+    u_p /= u_p[-1]
     return u_p[:-1]
 
     # For tasks before 0.4
@@ -37,8 +37,6 @@ def u2H(u1, u2):
     :return: H: a 3×3 homography matrix (np.array), or an empty array [] if there is no solution.
     """
     M = list()
-    # u1 = u1.T
-    # u2 = u2.T
 
     for i in range(u1.shape[1]):
         m = np.r_[u1[:, i], [0, 0, 0], -u1[:, i] * u2[0][i]]
@@ -46,9 +44,6 @@ def u2H(u1, u2):
         m = np.r_[[0, 0, 0], u1[:, i], -u1[:, i] * u2[1][i]]
         M.append(m)
 
-    # for i in range(len(u1)):
-    #     m = np.r_[[0, 0, 0], u1[:, i], -u1[:, i] * u2[1][i]]
-    #     M.append(m)
     M = np.array(M)
     H = lin_alg.null_space(M)
 
@@ -56,17 +51,16 @@ def u2H(u1, u2):
         return []
     return (H / H[-1]).reshape(3, 3)
 
-
-def vlen(x):
-    """
-    Column vectors length
-    Synopsis: l = vlen( x )
-    :param x: d by n matrix; n vectors of dimension d
-    :return: 1 by n row vector; euclidean lengths of the vectors
-    """
+    # def vlen(x):
+    # """
+    # Column vectors length
+    # Synopsis: l = vlen( x )
+    # :param x: d by n matrix; n vectors of dimension d
+    # :return: 1 by n row vector; euclidean lengths of the vectors
+    # """
     # def sqr_of_vec(vec):
     #     a = lambda x: x**2
-    return np.array(list(map(lambda z: np.sqrt(sum(list(map(lambda y: y ** 2, z)))), x)))
+    # return np.array(list(map(lambda z: np.sqrt(sum(list(map(lambda y: y ** 2, z)))), x)))
 
 
 def sqc(x):
@@ -107,20 +101,62 @@ def EutoRt(E, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n), used for cheirality test
     :return: R, t - relative rotation (3×3) or [] if cheirality fails, relative translation, euclidean (3×1), unit length
     """
-    pass
+    # E = R cross C, decomposition:
+    Rz = np.array([[0, 1, 0],
+                   [-1, 0, 0],
+                   [0, 0, 1]])
+    U, D, Vt = np.linalg.svd(E)
+    if np.linalg.det(U) < 0:
+        U = -U
+    if np.linalg.det(Vt) < 0:
+        Vt = -Vt
+    R_1 = U @ Rz @ Vt
+    R_2 = U @ Rz.T @ Vt
+    C_1 = U[:, -1]
+    C_2 = -C_1
+
+    P1_c = np.c_[(np.eye(3), np.zeros((3, 1)))]
+
+    result_index_R_C_Ps = []
+
+    for R_loop, C_loop in [[R_1, C_1], [R_1, C_2], [R_2, C_1], [R_2, C_2]]:
+        counter = 0
+        P2_c = np.c_[(R_loop, (R_loop @ C_loop).reshape(3, 1))]
+        X = Pu2X(P1_c, P2_c, u1, u2)
+        X = p2e(X)
+        for X_c, i in zip(X.T, range(X.shape[1])):
+            # u_tmp = np.array([u1[0][i], u1[1][i], 1]).reshape(3, 1)
+            u_tmp = u1[:, i]
+            # v_tmp = np.array([u2[0][i], u2[1][i], 1]).reshape(3, 1)
+            v_tmp = u2[:, i]
+            # check if after reconstruction point in front of both cameras
+            if (np.dot(X_c, u_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(u_tmp)) > 0) and \
+                    (np.dot(X_c, v_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(v_tmp)) > 0):
+                counter += 1
+
+        result_index_R_C_Ps.append([counter, R_loop, C_loop])
+    c, R, C = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
+    return [R, C]
 
 
 def Pu2X(P1, P2, u1, u2):
     """
     Binocular reconstruction by DLT triangulation
-    Notes: The sessential matrix E is decomposed such that E ~ sqc(t) * R. Note that t = -R*b.
+    Notes: The essential matrix E is decomposed such that E ~ sqc(t) * R. Note that t = -R*b.
 
     Synopsis: X = Pu2X( P1, P2, u1, u2 )
     :param P1, P2: projective camera matrices (3×4)
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: X - reconstructed 3D points, homogeneous (4×n)
     """
-    pass
+    res_X = []
+    for i in range(len(u1[0])):
+        u_tmp = u1[:, i]
+        v_tmp = u2[:, i]
+        M = np.vstack([np.c_[u_tmp, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), v_tmp, -P2]])
+        _, _, Vh = np.linalg.svd(M)
+        res_X.append(Vh[-1, 2:] / Vh[-1, -1])
+    return np.array(res_X).T
 
 
 def err_F_sampson(F, u1, u2):
