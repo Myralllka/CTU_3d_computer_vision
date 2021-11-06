@@ -1,6 +1,9 @@
 import toolbox
 from toolbox import *
 
+def ransac_E():
+    pass
+
 if __name__ == "__main__":
     ### Preparing, loading the data
     view_1 = 1

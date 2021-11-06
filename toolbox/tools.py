@@ -120,19 +120,21 @@ def Eu2Rt(E, u1, u2):
     result_index_R_C_Ps = []
 
     for R_loop, C_loop in [[R_1, C_1], [R_1, C_2], [R_2, C_1], [R_2, C_2]]:
-        counter = 0
         P2_c = np.c_[(R_loop, (R_loop @ C_loop).reshape(3, 1))]
         X = Pu2X(P1_c, P2_c, u1, u2)
         X = p2e(X)
-        for X_c, i in zip(X.T, range(X.shape[1])):
-            u_tmp = u1[:, i]
-            v_tmp = u2[:, i]
-            # check if after reconstruction point in front of both cameras
-            if (np.dot(X_c, u_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(u_tmp)) > 0) and \
-                    (np.dot(X_c, v_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(v_tmp)) > 0):
-                counter += 1
+        # check if after reconstruction point in front of both cameras
+        X_norm = np.linalg.norm(X, axis=0)
+        a = np.logical_and(np.sum(X * u1, axis=0) / (X_norm * (np.linalg.norm(u1, axis=0))),
+                           np.sum(X * u2, axis=0) / X_norm * (np.linalg.norm(u2, axis=0)))
 
-        result_index_R_C_Ps.append([counter, R_loop, C_loop])
+        # for X_c, i in zip(X.T, range(X.shape[1])):
+        #     u_tmp = u1[:, i]
+        #     v_tmp = u2[:, i]
+        #     if (np.dot(X_c, u_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(u_tmp)) > 0) and (np.dot(X_c, v_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(v_tmp)) > 0):
+        #         counter += 1
+        result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, C_loop])
+
     c, R, C = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
     return [R, C]
 
@@ -158,6 +160,9 @@ def Pu2X(P1, P2, u1, u2):
 
 
 def shortest_distance(p, ln) -> float:
+    """
+    find shortest distance from the point to the line
+    """
     return ln @ p
 
 
@@ -170,20 +175,13 @@ def err_F_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: e - Squared Sampson error for each correspondence (1×n).
     """
-    l_Fxu1 = F @ u1
-    e = np.sum(u2 * l_Fxu1, axis=0)
-    return e
-
-    # point_errors = []
-    # shape = {tuple: 2} (2128, 2128)
-    # for counter in range(u1.shape[1]):
-    #     a1 = u1[:, counter]
-    #     a2 = u2[:, counter]
-    #     ep1 = F.T @ a2
-    #     ep2 = F @ a1
-    #     d1_i = shortest_distance(a1, ep1)
-    #     d2_i = shortest_distance(a2, ep2)
-    #     point_errors.append(d1_i + d2_i)
+    l1_Fxu1 = F @ u1
+    e1 = np.sum(u2 * l1_Fxu1, axis=0)
+    # l2_FTxu2 = F.T @ u2
+    # e2 = np.sum(u1 * l2_FTxu2, axis=0)
+    # e = e1 + e2
+    # return e
+    return e1
 
 
 def u_correct_sampson(F, u1, u2):
