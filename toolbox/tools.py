@@ -124,15 +124,21 @@ def Eu2Rt(E, u1, u2):
         X = Pu2X(P1_c, P2_c, u1, u2)
         X = p2e(X)
         # check if after reconstruction point in front of both cameras
-        X_norm = np.linalg.norm(X, axis=0)
-        a = np.logical_and(np.sum(X * u1, axis=0) / (X_norm * (np.linalg.norm(u1, axis=0))),
-                           np.sum(X * u2, axis=0) / X_norm * (np.linalg.norm(u2, axis=0)))
 
-        # for X_c, i in zip(X.T, range(X.shape[1])):
-        #     u_tmp = u1[:, i]
-        #     v_tmp = u2[:, i]
-        #     if (np.dot(X_c, u_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(u_tmp)) > 0) and (np.dot(X_c, v_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(v_tmp)) > 0):
-        #         counter += 1
+        # Xxu = np.sum(np.multiply(X, u1), axis=0)
+        # Xxv = np.sum(np.multiply(X, u2), axis=0)
+        # X_norm = np.linalg.norm(X, axis=0)
+        # u_norm = np.linalg.norm(u1, axis=0)
+        # v_norm = np.linalg.norm(u2, axis=0)
+        # p1 = np.multiply(X_norm, u_norm)
+        # p2 = np.multiply(X_norm, v_norm)
+        # a1 = np.divide(Xxu, p1) > 0
+        # a2 = np.divide(Xxv, p2) > 0
+        a = np.logical_and((np.divide((np.sum(np.multiply(X, u1), axis=0)),
+                                      (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u1, axis=0))))) > 0),
+                           (np.divide((np.sum(np.multiply(X, u2), axis=0)),
+                                      (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u2, axis=0))))) > 0))
+
         result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, C_loop])
 
     c, R, C = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
@@ -177,10 +183,14 @@ def err_F_sampson(F, u1, u2):
     """
     l1_Fxu1 = F @ u1
     e1 = np.sum(u2 * l1_Fxu1, axis=0)
+    e1 *= e1
+    ###
     # l2_FTxu2 = F.T @ u2
     # e2 = np.sum(u1 * l2_FTxu2, axis=0)
+    # e2 *= e2
     # e = e1 + e2
     # return e
+    ###
     return e1
 
 
