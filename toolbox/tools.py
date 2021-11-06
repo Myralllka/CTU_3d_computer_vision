@@ -91,7 +91,7 @@ def get_intersect_lines(a1, a2, b1, b2):
     return [x / z, y / z]
 
 
-def EutoRt(E, u1, u2):
+def Eu2Rt(E, u1, u2):
     """
     Essential matrix decomposition with cheirality
     Notes: The sessential matrix E is decomposed such that E = R * sqc( b ).
@@ -125,9 +125,7 @@ def EutoRt(E, u1, u2):
         X = Pu2X(P1_c, P2_c, u1, u2)
         X = p2e(X)
         for X_c, i in zip(X.T, range(X.shape[1])):
-            # u_tmp = np.array([u1[0][i], u1[1][i], 1]).reshape(3, 1)
             u_tmp = u1[:, i]
-            # v_tmp = np.array([u2[0][i], u2[1][i], 1]).reshape(3, 1)
             v_tmp = u2[:, i]
             # check if after reconstruction point in front of both cameras
             if (np.dot(X_c, u_tmp) / (np.linalg.norm(X_c) * np.linalg.norm(u_tmp)) > 0) and \
@@ -159,6 +157,10 @@ def Pu2X(P1, P2, u1, u2):
     return np.array(res_X).T
 
 
+def shortest_distance(p, ln) -> float:
+    return ln @ p
+
+
 def err_F_sampson(F, u1, u2):
     """
     Sampson error on epipolar geometry
@@ -168,7 +170,20 @@ def err_F_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: e - Squared Sampson error for each correspondence (1×n).
     """
-    pass
+    l_Fxu1 = F @ u1
+    e = np.sum(u2 * l_Fxu1, axis=0)
+    return e
+
+    # point_errors = []
+    # shape = {tuple: 2} (2128, 2128)
+    # for counter in range(u1.shape[1]):
+    #     a1 = u1[:, counter]
+    #     a2 = u2[:, counter]
+    #     ep1 = F.T @ a2
+    #     ep2 = F @ a1
+    #     d1_i = shortest_distance(a1, ep1)
+    #     d2_i = shortest_distance(a2, ep2)
+    #     point_errors.append(d1_i + d2_i)
 
 
 def u_correct_sampson(F, u1, u2):
