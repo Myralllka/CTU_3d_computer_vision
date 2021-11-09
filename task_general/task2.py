@@ -1,11 +1,7 @@
-import random
-
-import numpy as np
-
 import toolbox
 from toolbox import *
 
-THETA = 2
+THETA = 0.5
 
 colors = ["dimgray", "rosybrown", "maroon", "peru",
           "moccasin", "yellow", "olivedrab", "lightgreen",
@@ -35,9 +31,7 @@ def draw_epipolar_lines(c_u1, c_u2, c_F, header='The epipolar lines using F'):
     plt.imshow(img1)
 
     plt.subplot(122)
-
     i = 0
-
     for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
         plt.plot([int(x_p2)], [int(y_p2)],
                  color=colors[i],
@@ -76,33 +70,24 @@ def ransac_E(c_u1p_K, c_u2p_K, iterations=1000):
         Es = p5.p5gb(loop_u1p, loop_u2p)
 
         for E in Es:
-            R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
-            F = K_inv.T @ E @ K_inv
-
-            e = err_epipolar(F, c_u1p_K, c_u2p_K)
+            e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
             e = e < THETA
-
-            # TODO: compute inlines in front of camera or back
-            # TODO: use scipy.optimize.fmin
-            # TODO: use rodrigues rotation formula
-
             if np.count_nonzero(e) > best_score:
+                R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
                 best_score = np.count_nonzero(e)
                 best_C = t_c
                 best_R = R_c
                 best_E = E
                 inliers_E = (c_u1p_K[:, e], c_u2p_K[:, e])
                 outliers_E = (c_u1p_K[:, ~e], c_u2p_K[:, ~e])
-                best_idxs = np.array(idxs)
                 print(best_score)
 
-    # return best_E, best_R, best_C, np.array(best_idxs).reshape(len(best_idxs[0]), )
-    return best_E, best_R, best_C, np.array(best_idxs).reshape(best_idxs.shape[0], ), inliers_E, outliers_E
+    return best_E, best_R, best_C, inliers_E, outliers_E
 
 
 if __name__ == "__main__":
     ### Preparing, loading the data
-    view_1 = 1
+    view_1 = 4
     view_2 = 12
 
     points_view_1 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_1)).T
@@ -131,7 +116,7 @@ if __name__ == "__main__":
     # u2p_K_undone = K_inv @ u2p_K
     # u2p_K_undone /= u2p_K_undone[-1]
 
-    E, R, C, idx, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, 200)
+    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, 200)
 
     # compute sampson error
     # optimize
@@ -139,6 +124,9 @@ if __name__ == "__main__":
 
     # draw_epipolar_lines(u1p_K[:, idx], u2p_K[:, idx], F)
     draw_epipolar_lines(inliers_E[0], inliers_E[1], F)
+
+    # TODO: use scipy.optimize.fmin
+    # TODO: use rodrigues rotation formula
 
     ### draw inliers and outliers
     fig = plt.figure(3)

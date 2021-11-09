@@ -119,26 +119,12 @@ def Eu2Rt(E, u1, u2):
         P2_c = np.c_[(R_loop, (R_loop @ C_loop).reshape(3, 1))]
         X = Pu2X(P1_c, P2_c, u1, u2)
         X = p2e(X)
-        # if X[-1] < 0:
-        #     continue
-        # TODO: check if X in P2 is positive.
-        # check if after reconstruction point in front of both cameras
-        # Xxu = np.sum(np.multiply(X, u1), axis=0)
-        # Xxv = np.sum(np.multiply(X, u2), axis=0)
-        # X_norm = np.linalg.norm(X, axis=0)
-        # u_norm = np.linalg.norm(u1, axis=0)
-        # v_norm = np.linalg.norm(u2, axis=0)
-        # p1 = np.multiply(X_norm, u_norm)
-        # p2 = np.multiply(X_norm, v_norm)
-        # a1 = np.divide(Xxu, p1) > 0
-        # a2 = np.divide(Xxv, p2) > 0
         a = np.logical_and((np.divide((np.sum(np.multiply(X, u1), axis=0)),
                                       (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u1, axis=0))))) > 0),
                            (np.divide((np.sum(np.multiply(X, u2), axis=0)),
                                       (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u2, axis=0))))) > 0))
 
         result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, C_loop])
-        # result_index_R_C_Ps.append()
 
     c, R, C = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
     return [R, C]
@@ -202,12 +188,10 @@ def err_epipolar(F, u1, u2):
     @param u1, u2: 3*n np matrix
     @return: 1*n no matrix
     """
-    l = F @ u1
-    l /= np.sqrt(l[0] ** 2 + l[1] ** 2)
-    e = u2 * l
-    e = np.abs(np.sum(e, axis=0))
+    c_l = F @ u1
+    c_l /= np.sqrt(c_l[0] ** 2 + c_l[1] ** 2)
+    e = np.abs(np.sum(u2 * c_l, axis=0))
     return e
-    # return np.abs(np.sum((u2.T @ F).T * u1, axis=0))
 
 
 def err_projection(P1, P2, u1, u2, X):
