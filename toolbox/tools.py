@@ -171,13 +171,6 @@ def Pu2X(P1, P2, u1, u2):
     return np.array(res_X).T
 
 
-def shortest_distance(p, ln) -> float:
-    """
-    find shortest distance from the point to the line
-    """
-    return ln @ p
-
-
 def err_F_sampson(F, u1, u2):
     """
     Sampson error on epipolar geometry
@@ -187,9 +180,10 @@ def err_F_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: e - Squared Sampson error for each correspondence (1×n).
     """
-    l1_Fxu1 = F @ u1
-    e1 = np.sum(u2 * l1_Fxu1, axis=0)
-    e1 *= e1
+    # TODO implement
+    # l1_Fxu1 = F @ u1
+    # e1 = np.sum(u2 * l1_Fxu1, axis=0)
+    # e1 *= e1
     ###
     # l2_FTxu2 = F.T @ u2
     # e2 = np.sum(u1 * l2_FTxu2, axis=0)
@@ -197,8 +191,8 @@ def err_F_sampson(F, u1, u2):
     # e = e1 + e2
     # return e
     ###
-    return e1
-    # pass
+    # return e1
+    pass
 
 
 def err_epipolar(F, u1, u2):
@@ -207,9 +201,13 @@ def err_epipolar(F, u1, u2):
     @param F: 3*3 rank2 matrix
     @param u1, u2: 3*n np matrix
     @return: 1*n no matrix
-
     """
-    return np.abs(np.sum((u2.T @ F).T * u1, axis=0))
+    l = F @ u1
+    l /= np.sqrt(l[0] ** 2 + l[1] ** 2)
+    e = u2 * l
+    e = np.abs(np.sum(e, axis=0))
+    return e
+    # return np.abs(np.sum((u2.T @ F).T * u1, axis=0))
 
 
 def err_projection(P1, P2, u1, u2, X):
