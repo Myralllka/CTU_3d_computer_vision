@@ -106,10 +106,6 @@ def Eu2Rt(E, u1, u2):
                    [-1, 0, 0],
                    [0, 0, 1]])
     U, D, Vt = np.linalg.svd(E)
-    if np.linalg.det(U) < 0:
-        U = -U
-    if np.linalg.det(Vt) < 0:
-        Vt = -Vt
     R_1 = U @ Rz @ Vt
     R_2 = U @ Rz.T @ Vt
     C_1 = U[:, -1]
@@ -123,8 +119,10 @@ def Eu2Rt(E, u1, u2):
         P2_c = np.c_[(R_loop, (R_loop @ C_loop).reshape(3, 1))]
         X = Pu2X(P1_c, P2_c, u1, u2)
         X = p2e(X)
+        # if X[-1] < 0:
+        #     continue
+        # TODO: check if X in P2 is positive.
         # check if after reconstruction point in front of both cameras
-
         # Xxu = np.sum(np.multiply(X, u1), axis=0)
         # Xxv = np.sum(np.multiply(X, u2), axis=0)
         # X_norm = np.linalg.norm(X, axis=0)
@@ -140,6 +138,7 @@ def Eu2Rt(E, u1, u2):
                                       (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u2, axis=0))))) > 0))
 
         result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, C_loop])
+        # result_index_R_C_Ps.append()
 
     c, R, C = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
     return [R, C]
@@ -157,11 +156,18 @@ def Pu2X(P1, P2, u1, u2):
     """
     res_X = []
     for i in range(len(u1[0])):
-        u_tmp = u1[:, i]
-        v_tmp = u2[:, i]
-        M = np.vstack([np.c_[u_tmp, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), v_tmp, -P2]])
-        _, _, Vh = np.linalg.svd(M)
-        res_X.append(Vh[-1, 2:] / Vh[-1, -1])
+        c_u = u1[:, i]
+        c_v = u2[:, i]
+        D = np.c_[c_u[0] * P1[2] - P1[0],
+                  c_u[1] * P1[2] - P2[0],
+                  c_v[0] * P2[2] - P1[1],
+                  c_v[1] * P2[2] - P2[1]]
+
+        # M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
+        # _, _, Vh = np.linalg.svd(M)
+        # res_X.append(Vh[-1, 2:] / Vh[-1, -1])
+        _, _, Vh = np.linalg.svd(D.T @ D)
+        res_X.append(Vh[:, -1] / Vh[-1][-1])
     return np.array(res_X).T
 
 
@@ -192,6 +198,39 @@ def err_F_sampson(F, u1, u2):
     # return e
     ###
     return e1
+    # pass
+
+
+def err_epipolar(F, u1, u2):
+    """
+    compute the epipolar error given fundamental matrix F, u1, u2
+    @param F: 3*3 rank2 matrix
+    @param u1, u2: 3*n np matrix
+    @return: 1*n no matrix
+
+    """
+    return np.abs(np.sum((u2.T @ F).T * u1, axis=0))
+
+
+def err_projection(P1, P2, u1, u2, X):
+    """
+    compute projection error given P1, P2, u1, u2, X
+
+    @param P1, P2: 3*4 np matrix
+    @param u1, u2: 3*n np matrix
+    @param X: 4*n matrix
+
+    @return: 1*n np matrix
+    """
+    e1 = P1 @ X
+    e1 /= e1[-1]
+    e2 = P2 @ X
+    e2 /= e2[-1]
+    e1 = np.sum(e1 - u1, axis=0)
+    e2 = np.sum(e2 - u2, axis=0)
+    e1 **= 2
+    e2 **= 2
+    return e1 + e2
 
 
 def u_correct_sampson(F, u1, u2):

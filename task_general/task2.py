@@ -3,28 +3,28 @@ import numpy as np
 import toolbox
 from toolbox import *
 
-THETA = 0.001
+THETA = 0.0001
 
 colors = ["dimgray", "rosybrown", "maroon", "peru",
           "moccasin", "yellow", "olivedrab", "lightgreen",
           "navy", "royalblue", "indigo", "hotpink"]
 
 
-def step2(u1_step2, u2_step2, F_step2, header='The epipolar lines using F'):
+def draw_epipolar_lines(u1_step2, u2_step2, F_step2, header='The epipolar lines using F'):
     fig = plt.figure()
     fig.clf()
     fig.suptitle(header)
     plt.subplot(121)
 
     i = 0
-    MAX = 50
-    n = 50
+    # MAX = 50
+    # n = 50
     for x_p1, y_p1, x_p2, y_p2 in zip(u1_step2[0], u1_step2[1], u2_step2[0],
                                       u2_step2[1]):
-        if n != MAX:
-            n += 1
-            continue
-        n = 0
+        # if n != MAX:
+        #     n += 1
+        #     continue
+        # n = 0
         plt.plot([int(x_p1)], [int(y_p1)], color=colors[i], marker="X",
                  markersize=10)
         point2_step2 = np.c_[x_p2, y_p2, 1].reshape(3, 1)
@@ -40,12 +40,12 @@ def step2(u1_step2, u2_step2, F_step2, header='The epipolar lines using F'):
     plt.subplot(122)
 
     i = 0
-    n = 0
+    # n = 0
     for x_p1, y_p1, x_p2, y_p2 in zip(u1_step2[0], u1_step2[1], u2_step2[0], u2_step2[1]):
-        if n != MAX:
-            n += 1
-            continue
-        n = 0
+        # if n != MAX:
+        #     n += 1
+        #     continue
+        # n = 0
         plt.plot([int(x_p2)], [int(y_p2)],
                  color=colors[i],
                  marker="X",
@@ -76,33 +76,39 @@ def ransac_E(c_u1p_K, c_u2p_K, iterations=1000):
 
     for i in range(iterations):
         idxs = random.sample(range(c_u2p_K.shape[1]), 5)
-        loop_u1p = c_u1p_K[:, idxs]
-        loop_u2p = c_u2p_K[:, idxs]
+        loop_u1p = c_u1p_K_undone[:, idxs]
+        loop_u2p = c_u2p_K_undone[:, idxs]
         Es = p5.p5gb(loop_u1p, loop_u2p)
 
         for E in Es:
-            R_c, t_c = Eu2Rt(E, c_u1p_K_undone, c_u2p_K_undone)
+            R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
             F = K_inv.T @ E @ K_inv
-            e = err_F_sampson(F, c_u1p_K, c_u2p_K)
+
+            e = err_epipolar(F, c_u1p_K, c_u2p_K)
             e = e < THETA
 
             # TODO: compute inlines in front of camera or back
+
+            # TODO: use scipy.optimize.fmin
+            # TODO: use rodrigues rotation formula
 
             if np.count_nonzero(e) > best_score:
                 best_score = np.count_nonzero(e)
                 best_C = t_c
                 best_R = R_c
                 best_E = E
-                best_idxs = np.where(e)
+                # best_idxs = np.where(e)
+                best_idxs = np.array(idxs)
                 print(best_score)
 
-    return best_E, best_R, best_C, np.array(best_idxs).reshape(len(best_idxs[0]), )
+    # return best_E, best_R, best_C, np.array(best_idxs).reshape(len(best_idxs[0]), )
+    return best_E, best_R, best_C, np.array(best_idxs).reshape(best_idxs.shape[0], )
 
 
 if __name__ == "__main__":
     ### Preparing, loading the data
-    view_1 = 1
-    view_2 = 9
+    view_1 = 7
+    view_2 = 8
 
     points_view_1 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_1)).T
     points_view_2 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_2)).T
@@ -125,12 +131,15 @@ if __name__ == "__main__":
     u2p_K = e2p(u2)
 
     ### undone K for working with F
-    u1p_K_undone = K_inv @ u1p_K
-    u1p_K_undone /= u1p_K_undone[-1]
-    u2p_K_undone = K_inv @ u2p_K
-    u2p_K_undone /= u2p_K_undone[-1]
+    # u1p_K_undone = K_inv @ u1p_K
+    # u1p_K_undone /= u1p_K_undone[-1]
+    # u2p_K_undone = K_inv @ u2p_K
+    # u2p_K_undone /= u2p_K_undone[-1]
 
-    E, R, C, idx = ransac_E(u1p_K, u2p_K, 10)
+    E, R, C, idx = ransac_E(u1p_K, u2p_K, 200)
+
+    # compute sampson error
+    # optimize
     F = K_inv.T @ E @ K_inv
 
-    step2(u1p_K[:, idx], u2p_K[:, idx], F)
+    draw_epipolar_lines(u1p_K[:, idx], u2p_K[:, idx], F)
