@@ -1,7 +1,7 @@
 import toolbox
 from toolbox import *
 
-THETA = 0.5
+THETA = 0.3
 
 colors = ["dimgray", "rosybrown", "maroon", "peru",
           "moccasin", "yellow", "olivedrab", "lightgreen",
@@ -70,7 +70,8 @@ def ransac_E(c_u1p_K, c_u2p_K, iterations=1000):
         Es = p5.p5gb(loop_u1p, loop_u2p)
 
         for E in Es:
-            e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
+            # e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
+            e = err_F_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
             e = e < THETA
             if np.count_nonzero(e) > best_score:
                 R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
@@ -87,7 +88,7 @@ def ransac_E(c_u1p_K, c_u2p_K, iterations=1000):
 
 if __name__ == "__main__":
     ### Preparing, loading the data
-    view_1 = 4
+    view_1 = 1
     view_2 = 12
 
     points_view_1 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_1)).T
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     # u2p_K_undone = K_inv @ u2p_K
     # u2p_K_undone /= u2p_K_undone[-1]
 
-    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, 200)
+    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, 1000)
 
     # compute sampson error
     # optimize

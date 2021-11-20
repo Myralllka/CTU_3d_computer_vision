@@ -166,19 +166,13 @@ def err_F_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: e - Squared Sampson error for each correspondence (1×n).
     """
-    # TODO implement
-    # l1_Fxu1 = F @ u1
-    # e1 = np.sum(u2 * l1_Fxu1, axis=0)
-    # e1 *= e1
-    ###
-    # l2_FTxu2 = F.T @ u2
-    # e2 = np.sum(u1 * l2_FTxu2, axis=0)
-    # e2 *= e2
-    # e = e1 + e2
-    # return e
-    ###
-    # return e1
-    pass
+    alg_epipolar_error = err_epipolar(F, u1, u2)
+    S = np.array([[1, 0, 0],
+                  [0, 1, 0]])
+    SF = S @ F
+    denom = np.sqrt(np.linalg.norm(SF @ u1, axis=0) ** 2 + np.linalg.norm(SF @ u2, axis=0) ** 2)
+
+    return alg_epipolar_error / denom
 
 
 def err_epipolar(F, u1, u2):
@@ -189,7 +183,8 @@ def err_epipolar(F, u1, u2):
     @return: 1*n no matrix
     """
     c_l = F @ u1
-    c_l /= np.sqrt(c_l[0] ** 2 + c_l[1] ** 2)
+    # line normalisation
+    # c_l /= np.sqrt(c_l[0] ** 2 + c_l[1] ** 2)
     e = np.abs(np.sum(u2 * c_l, axis=0))
     return e
 
@@ -224,4 +219,3 @@ def u_correct_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: nu1, nu2 - corrected corresponding points, homog. (3×n).
     """
-    pass
