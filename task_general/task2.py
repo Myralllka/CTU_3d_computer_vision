@@ -72,6 +72,7 @@ def ransac_E(c_u1p_K, c_u2p_K, iterations=1000):
         for E in Es:
             # e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
             e = err_F_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
+            u_correct_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
             e = e < THETA
             if np.count_nonzero(e) > best_score:
                 R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)

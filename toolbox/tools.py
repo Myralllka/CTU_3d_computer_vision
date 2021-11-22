@@ -189,7 +189,7 @@ def err_epipolar(F, u1, u2):
     return e
 
 
-def err_projection(P1, P2, u1, u2, X):
+def err_reprojection(P1, P2, u1, u2, X):
     """
     compute projection error given P1, P2, u1, u2, X
 
@@ -219,3 +219,18 @@ def u_correct_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: nu1, nu2 - corrected corresponding points, homog. (3×n).
     """
+    alg_epipolar_error = err_epipolar(F, u1, u2)
+    S = np.array([[1, 0, 0],
+                  [0, 1, 0]])
+    SF = S @ F
+    denom = np.linalg.norm(SF @ u1, axis=0) ** 2 + np.linalg.norm(SF @ u2, axis=0) ** 2
+
+    fraction = alg_epipolar_error / denom
+
+    # [u1 u2 v1 v2]
+    original = np.vstack((p2e(u1), p2e(u2)))
+    F1 = F.T[0]
+    F2 = F.T[1]
+    right = np.vstack((F1 @ u2, F2 @ u2, F1 @ u1, F2 @ u1))
+    right2 = fraction * right
+    return original - right2
