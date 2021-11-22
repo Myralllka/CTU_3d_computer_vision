@@ -1,96 +1,12 @@
 import toolbox
 from toolbox import *
 
-THETA = 0.3
-
-colors = ["dimgray", "rosybrown", "maroon", "peru",
-          "moccasin", "yellow", "olivedrab", "lightgreen",
-          "navy", "royalblue", "indigo", "hotpink"]
-
-
-def draw_epipolar_lines(c_u1, c_u2, c_F, header='The epipolar lines using F'):
-    idxs = random.sample(range(c_u1.shape[1]), len(colors))
-    c_u1 = c_u1[:, idxs]
-    c_u2 = c_u2[:, idxs]
-    fig = plt.figure()
-    fig.clf()
-    fig.suptitle(header)
-    plt.subplot(121)
-    i = 0
-    for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
-        plt.plot([int(x_p1)], [int(y_p1)], color=colors[i], marker="X",
-                 markersize=10)
-        point2_step2 = np.c_[x_p2, y_p2, 1].reshape(3, 1)
-
-        x = np.linspace(1, img1.shape[1], img1.shape[1])
-        ep1_step2 = c_F.T @ point2_step2
-        y = -((ep1_step2[2] / ep1_step2[1]) + x * ep1_step2[0] / ep1_step2[1])
-        plt.plot(x, y, color=colors[i])
-
-        i += 1
-    plt.imshow(img1)
-
-    plt.subplot(122)
-    i = 0
-    for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
-        plt.plot([int(x_p2)], [int(y_p2)],
-                 color=colors[i],
-                 marker="X",
-                 markersize=10)
-        point1_step2 = np.c_[x_p1, y_p1, 1].reshape(3, 1)
-
-        x = np.linspace(1, img1.shape[1], img1.shape[1])
-        point1_step2 = point1_step2.reshape(3, 1)
-        ep2_step2 = c_F @ point1_step2
-        y = -((ep2_step2[2] / ep2_step2[1]) + x * ep2_step2[0] / ep2_step2[1])
-        plt.plot(x, y, color=colors[i])
-        i += 1
-
-    plt.imshow(img2)
-    plt.show()
-
-
-def ransac_E(c_u1p_K, c_u2p_K, iterations=1000):
-    best_score = 0
-    best_R = []
-    best_C = []
-    best_E = []
-    best_idxs = []
-    inliers_E, outliers_E = [], []
-
-    c_u1p_K_undone = K_inv @ c_u1p_K
-    c_u1p_K_undone /= c_u1p_K_undone[-1]
-    c_u2p_K_undone = K_inv @ c_u2p_K
-    c_u2p_K_undone /= c_u2p_K_undone[-1]
-
-    for i in range(iterations):
-        idxs = random.sample(range(c_u2p_K.shape[1]), 5)
-        loop_u1p = c_u1p_K_undone[:, idxs]
-        loop_u2p = c_u2p_K_undone[:, idxs]
-        Es = p5.p5gb(loop_u1p, loop_u2p)
-
-        for E in Es:
-            # e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
-            e = err_F_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
-            u_correct_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
-            e = e < THETA
-            if np.count_nonzero(e) > best_score:
-                R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
-                best_score = np.count_nonzero(e)
-                best_C = t_c
-                best_R = R_c
-                best_E = E
-                inliers_E = (c_u1p_K[:, e], c_u2p_K[:, e])
-                outliers_E = (c_u1p_K[:, ~e], c_u2p_K[:, ~e])
-                print(best_score)
-
-    return best_E, best_R, best_C, inliers_E, outliers_E
-
+THETA = 0.5
 
 if __name__ == "__main__":
     ### Preparing, loading the data
     view_1 = 1
-    view_2 = 12
+    view_2 = 5
 
     points_view_1 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_1)).T
     points_view_2 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_2)).T
@@ -118,14 +34,14 @@ if __name__ == "__main__":
     # u2p_K_undone = K_inv @ u2p_K
     # u2p_K_undone /= u2p_K_undone[-1]
 
-    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, 1000)
-
+    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, K, THETA, p5.p5gb, iterations=1000)
+    
     # compute sampson error
     # optimize
+
     F = K_inv.T @ E @ K_inv
 
-    # draw_epipolar_lines(u1p_K[:, idx], u2p_K[:, idx], F)
-    draw_epipolar_lines(inliers_E[0], inliers_E[1], F)
+    draw_epipolar_lines(inliers_E[0], inliers_E[1], F, img1, img2)
 
     # TODO: use scipy.optimize.fmin
     # TODO: use rodrigues rotation formula

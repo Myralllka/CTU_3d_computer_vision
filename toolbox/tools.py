@@ -1,5 +1,7 @@
 import numpy as np  # for matrix computation and linear algebra
 import scipy.linalg as lin_alg
+import random
+import matplotlib.pyplot as plt
 
 
 def e2p(u_e):
@@ -10,8 +12,6 @@ def e2p(u_e):
     :return: d+1 by n matrix; n homogeneous vectors of dimension d+1
     """
     return np.vstack((u_e, np.ones(u_e.shape[1])))
-    # For tasks before 0.4
-    # return np.c_[u_e, np.ones(len(u_e))]
 
 
 def p2e(u_p):
@@ -24,10 +24,6 @@ def p2e(u_p):
 
     u_p /= u_p[-1]
     return u_p[:-1]
-
-    # For tasks before 0.4
-    # u_p = np.array(list(map(lambda x: np.array([x[0] / x[-1], x[1] / x[-1], 1]), u_p)))
-    # return np.delete(u_p, -1, axis=1)
 
 
 def u2H(u1, u2):
@@ -50,17 +46,6 @@ def u2H(u1, u2):
     if H.size == 0 or np.linalg.matrix_rank(M) != 8:
         return []
     return (H / H[-1]).reshape(3, 3)
-
-    # def vlen(x):
-    # """
-    # Column vectors length
-    # Synopsis: l = vlen( x )
-    # :param x: d by n matrix; n vectors of dimension d
-    # :return: 1 by n row vector; euclidean lengths of the vectors
-    # """
-    # def sqr_of_vec(vec):
-    #     a = lambda x: x**2
-    # return np.array(list(map(lambda z: np.sqrt(sum(list(map(lambda y: y ** 2, z)))), x)))
 
 
 def sqc(x):
@@ -234,3 +219,88 @@ def u_correct_sampson(F, u1, u2):
     right = np.vstack((F1 @ u2, F2 @ u2, F1 @ u1, F2 @ u1))
     right2 = fraction * right
     return original - right2
+
+
+def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
+    colors = ["dimgray", "rosybrown", "maroon", "peru",
+              "moccasin", "yellow", "olivedrab", "lightgreen",
+              "navy", "royalblue", "indigo", "hotpink"]
+
+    idxs = random.sample(range(c_u1.shape[1]), len(colors))
+    c_u1 = c_u1[:, idxs]
+    c_u2 = c_u2[:, idxs]
+    fig = plt.figure()
+    fig.clf()
+    fig.suptitle(header)
+    plt.subplot(121)
+    i = 0
+    for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
+        plt.plot([int(x_p1)], [int(y_p1)], color=colors[i], marker="X",
+                 markersize=10)
+        point2_step2 = np.c_[x_p2, y_p2, 1].reshape(3, 1)
+
+        x = np.linspace(1, img1.shape[1], img1.shape[1])
+        ep1_step2 = c_F.T @ point2_step2
+        y = -((ep1_step2[2] / ep1_step2[1]) + x * ep1_step2[0] / ep1_step2[1])
+        plt.plot(x, y, color=colors[i])
+
+        i += 1
+    plt.imshow(img1)
+
+    plt.subplot(122)
+    i = 0
+    for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
+        plt.plot([int(x_p2)], [int(y_p2)],
+                 color=colors[i],
+                 marker="X",
+                 markersize=10)
+        point1_step2 = np.c_[x_p1, y_p1, 1].reshape(3, 1)
+
+        x = np.linspace(1, img1.shape[1], img1.shape[1])
+        point1_step2 = point1_step2.reshape(3, 1)
+        ep2_step2 = c_F @ point1_step2
+        y = -((ep2_step2[2] / ep2_step2[1]) + x * ep2_step2[0] / ep2_step2[1])
+        plt.plot(x, y, color=colors[i])
+        i += 1
+
+    plt.imshow(img2)
+    plt.show()
+
+
+def ransac_E(c_u1p_K, c_u2p_K, K, theta, optimiser, iterations=1000):
+    best_score = 0
+    best_R = []
+    best_C = []
+    best_E = []
+    best_idxs = []
+    inliers_E, outliers_E = [], []
+
+    K_inv = np.linalg.inv(K)
+
+    c_u1p_K_undone = K_inv @ c_u1p_K
+    c_u1p_K_undone /= c_u1p_K_undone[-1]
+    c_u2p_K_undone = K_inv @ c_u2p_K
+    c_u2p_K_undone /= c_u2p_K_undone[-1]
+
+    for i in range(iterations):
+        idxs = random.sample(range(c_u2p_K.shape[1]), 5)
+        loop_u1p = c_u1p_K_undone[:, idxs]
+        loop_u2p = c_u2p_K_undone[:, idxs]
+        Es = optimiser(loop_u1p, loop_u2p)
+
+        for E in Es:
+            # e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
+            e = err_F_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
+            u_correct_sampson(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
+            e = e < theta
+            if np.count_nonzero(e) > best_score:
+                R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
+                best_score = np.count_nonzero(e)
+                best_C = t_c
+                best_R = R_c
+                best_E = E
+                inliers_E = (c_u1p_K[:, e], c_u2p_K[:, e])
+                outliers_E = (c_u1p_K[:, ~e], c_u2p_K[:, ~e])
+                print(best_score)
+
+    return best_E, best_R, best_C, inliers_E, outliers_E
