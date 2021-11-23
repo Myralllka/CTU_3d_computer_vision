@@ -1,7 +1,7 @@
 import toolbox
 from toolbox import *
 
-THETA = 2
+THETA = 0.5
 
 if __name__ == "__main__":
     ### Preparing, loading the data
@@ -28,28 +28,17 @@ if __name__ == "__main__":
     u1p_K = e2p(u1)
     u2p_K = e2p(u2)
 
-    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, K, THETA, p5.p5gb, iterations=1000)
-    
+    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, K, THETA, p5.p5gb, iterations=2000)
+
     # compute sampson error
     # optimize
 
-    F = K_inv.T @ E @ K_inv
+    # F = K_inv.T @ E @ K_inv
+    #
+    # draw_epipolar_lines(inliers_E[0], inliers_E[1], F, img1, img2)
 
-    draw_epipolar_lines(inliers_E[0], inliers_E[1], F, img1, img2)
+    # TODO: use scipy.optimize.fmin
+    # TODO: use rodrigues rotation formula
+    # TODO: rewrite ransac to return inliers indexes
 
-    ### draw inliers and outliers
-    fig = plt.figure(3)
-    fig.clf()
-    fig.suptitle("inliers and outliers")
-
-    a = p2e(outliers_E[0])
-    b = p2e(outliers_E[1])
-    plt.plot(a[0], a[1], 'k.', markersize=.8)
-    plt.plot([a[0], b[0]], [a[1], b[1]], 'k-', linewidth=.2)
-
-    a = p2e(inliers_E[0])
-    b = p2e(inliers_E[1])
-    plt.plot(a[0], a[1], 'c.')
-    plt.plot([a[0], b[0]], [a[1], b[1]], 'c-')
-    plt.imshow(img1)
-    plt.show()
+    # Use reprojection errors
