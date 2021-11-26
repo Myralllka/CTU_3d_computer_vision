@@ -76,6 +76,48 @@ def get_intersect_lines(a1, a2, b1, b2):
     return [x / z, y / z]
 
 
+def R2mrp(R):
+    """
+    Rotation matrix (9 parameters) to rotation vector (3 parameters) using rodrigues formula
+    source: https://courses.cs.duke.edu/fall13/compsci527/notes/rodrigues.pdf
+    @param R: rotation matrix
+    @return: rotation vector
+    """
+    assert np.isclose(1, np.linalg.det(R), atol=1e-05, equal_nan=False), "det(R) should be 1"
+
+    A = (R - R.T) / 2
+    ro = [A[2, 1], A[0, 2], A[1, 0]]
+    s = np.linalg.norm(ro)
+    c = (np.sum(np.diag(R)) - 1) / 2
+    if np.isclose(s, 0, atol=1e-04) and np.isclose(c, 1, atol=1e-5):
+        return [0, 0, 0]
+    if np.isclose(s, 0, atol=1e-04) and np.isclose(c, -1, atol=1e-5):
+        # TODO
+        assert "todo"
+        RI = R + np.eye(3)
+        # any nonzero column
+        u = RI[:, 0] / np.linalg.norm(RI[:, 0])
+        return np.pi * u
+    u = ro / s
+    theta = np.arctan2(s, c)
+    return u * theta
+
+
+def mrd2R(r):
+    """
+    modified rodrigues parameters to matrix
+     source: https://courses.cs.duke.edu/fall13/compsci527/notes/rodrigues.pdf
+    @param r: rotation vector
+    @return: rotation matrix
+    """
+    assert np.linalg.norm(r) < np.pi, "norm od r should be less than pi"
+    theta = np.linalg.norm(r)
+    if theta == 0:
+        return np.eye(3)
+    u = r / theta
+    return np.eye(3) * np.cos(theta) + (1 - np.cos(theta)) * np.outer(u, u) + sqc(u) * np.sin(theta)
+
+
 def Eu2Rt(E, u1, u2):
     """
     Essential matrix decomposition with cheirality
@@ -91,6 +133,10 @@ def Eu2Rt(E, u1, u2):
                    [-1, 0, 0],
                    [0, 0, 1]])
     U, D, Vt = np.linalg.svd(E)
+    if np.linalg.det(U) < 0:
+        U = -U
+    if np.linalg.det(Vt) < 0:
+        Vt = -Vt
     R_1 = U @ Rz @ Vt
     R_2 = U @ Rz.T @ Vt
     C_1 = U[:, -1]

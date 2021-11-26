@@ -1,3 +1,5 @@
+import numpy as np
+
 import toolbox
 from toolbox import *
 
@@ -28,10 +30,13 @@ if __name__ == "__main__":
     u1p_K = e2p(u1)
     u2p_K = e2p(u2)
 
-    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb, iterations=1000)
+    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb, iterations=100)
     inliers_idxs = points_1_2_relations[:, inliers_corresp_idxs]
     # compute sampson error
-    # optimize
+    print(R)
+    # print(R2mrp(R))
+    print(mrd2R(R2mrp(R)))
+    # R, C = optimise_R_C(R, C)
 
     F = K_inv.T @ E @ K_inv
 
