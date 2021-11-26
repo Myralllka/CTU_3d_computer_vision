@@ -222,6 +222,15 @@ def u_correct_sampson(F, u1, u2):
 
 
 def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
+    """
+    @param c_u1:
+    @param c_u2:
+    @param c_F:
+    @param img1:
+    @param img2:
+    @param header:
+    @return:
+    """
     colors = ["dimgray", "rosybrown", "maroon", "peru",
               "moccasin", "yellow", "olivedrab", "lightgreen",
               "navy", "royalblue", "indigo", "hotpink"]
@@ -267,13 +276,10 @@ def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
     plt.show()
 
 
-def ransac_E(c_u1p_K, c_u2p_K, K, theta, optimiser, iterations=1000):
+def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=1000):
     best_score = 0
-    best_R = []
-    best_C = []
-    best_E = []
-    best_idxs = []
-    inliers_E, outliers_E = [], []
+    best_R, best_C, best_E = [], [], []
+    inliers_E_idxs = []
 
     K_inv = np.linalg.inv(K)
 
@@ -283,14 +289,15 @@ def ransac_E(c_u1p_K, c_u2p_K, K, theta, optimiser, iterations=1000):
     c_u2p_K_undone /= c_u2p_K_undone[-1]
 
     for i in range(iterations):
-        idxs = random.sample(range(c_u2p_K.shape[1]), 5)
-        loop_u1p = c_u1p_K_undone[:, idxs]
-        loop_u2p = c_u2p_K_undone[:, idxs]
+        # idxs = random.sample(range(c_u2p_K.shape[1]), 5)
+        corresp_idxs = random.sample(range(correspondences.shape[1]), 5)
+        corresp_idxs = correspondences[:, corresp_idxs]
+        loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]
+        loop_u2p = c_u2p_K_undone[:, corresp_idxs[1]]
         Es = optimiser(loop_u1p, loop_u2p)
         for E in Es:
             F = K_inv.T @ E @ K_inv
-            # e = err_epipolar(K_inv.T @ E @ K_inv, c_u1p_K, c_u2p_K)
-            e = err_F_sampson(F, c_u1p_K, c_u2p_K)
+            e = err_F_sampson(F, c_u1p_K[:, correspondences[0]], c_u2p_K[:, correspondences[1]])
             e = e < theta
             if np.count_nonzero(e) > best_score:
                 R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
@@ -298,8 +305,6 @@ def ransac_E(c_u1p_K, c_u2p_K, K, theta, optimiser, iterations=1000):
                 best_C = t_c
                 best_R = R_c
                 best_E = E
-                inliers_E = (c_u1p_K[:, e], c_u2p_K[:, e])
-                outliers_E = (c_u1p_K[:, ~e], c_u2p_K[:, ~e])
+                inliers_E_idxs = e
                 print(best_score)
-
-    return best_E, best_R, best_C, inliers_E, outliers_E
+    return best_E, best_R, best_C, inliers_E_idxs

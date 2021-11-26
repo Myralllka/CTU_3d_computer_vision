@@ -28,8 +28,6 @@ if __name__ == "__main__":
     u1p_K = e2p(u1)
     u2p_K = e2p(u2)
 
-    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, K, THETA, p5.p5gb, iterations=2000)
-
     # compute sampson error
     # optimize
 

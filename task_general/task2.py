@@ -1,11 +1,11 @@
 import toolbox
 from toolbox import *
 
-THETA = 2
+THETA = 0.5
 
 if __name__ == "__main__":
     ### Preparing, loading the data
-    view_1 = 1
+    view_1 = 8
     view_2 = 12
 
     points_view_1 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_1)).T
@@ -22,33 +22,34 @@ if __name__ == "__main__":
     K = np.loadtxt('task_general/K.txt')
     K_inv = np.linalg.inv(K)
 
-    u1 = points_view_1[:, points_1_2_relations[0]]
-    u2 = points_view_2[:, points_1_2_relations[1]]
+    u1 = points_view_1
+    u2 = points_view_2
 
     u1p_K = e2p(u1)
     u2p_K = e2p(u2)
 
-    E, R, C, inliers_E, outliers_E = ransac_E(u1p_K, u2p_K, K, THETA, p5.p5gb, iterations=1000)
-    
+    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb, iterations=1000)
+    inliers_idxs = points_1_2_relations[:, inliers_corresp_idxs]
     # compute sampson error
     # optimize
 
     F = K_inv.T @ E @ K_inv
 
-    draw_epipolar_lines(inliers_E[0], inliers_E[1], F, img1, img2)
+    draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], F, img1, img2)
 
     ### draw inliers and outliers
     fig = plt.figure(3)
     fig.clf()
     fig.suptitle("inliers and outliers")
 
-    a = p2e(outliers_E[0])
-    b = p2e(outliers_E[1])
+    a = u1[:, points_1_2_relations[0, ~inliers_corresp_idxs]]
+    b = u2[:, points_1_2_relations[1, ~inliers_corresp_idxs]]
+
     plt.plot(a[0], a[1], 'k.', markersize=.8)
     plt.plot([a[0], b[0]], [a[1], b[1]], 'k-', linewidth=.2)
 
-    a = p2e(inliers_E[0])
-    b = p2e(inliers_E[1])
+    a = [u1[0, inliers_idxs[0]], u1[1, inliers_idxs[0]]]
+    b = [u2[0, inliers_idxs[1]], u2[1, inliers_idxs[1]]]
     plt.plot(a[0], a[1], 'c.')
     plt.plot([a[0], b[0]], [a[1], b[1]], 'c-')
     plt.imshow(img1)
