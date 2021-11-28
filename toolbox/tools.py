@@ -2,6 +2,7 @@ import numpy as np
 import scipy.linalg as lin_alg
 import random
 import matplotlib.pyplot as plt
+import p5
 
 
 def e2p(u_e):
@@ -345,3 +346,49 @@ def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=
                 inliers_E_idxs = np.nonzero(e)
                 print(best_score)
     return best_E, best_R, best_C, inliers_E_idxs[0]
+
+
+def compute_epipolar_error(vector, m_u1p, m_u2p, corres, m_K, theta):
+    """
+    function to minimise
+
+    @param vector: [0:3] rotation
+    @param vector: [3:] translation
+    """
+    l_u1p = m_u1p[:, corres[0]]
+    l_u2p = m_u2p[:, corres[1]]
+    R = mrd2R(vector[0:3])
+    E = R @ sqc(- R.T @ vector[3:])
+    kinv = np.linalg.inv(m_K)
+    e = err_F_sampson(kinv.T @ E @ kinv, l_u1p, l_u2p)
+    e = [((el ** 2) / (theta ** 2)) - 1 if el < theta else 1 for el in e]
+    return np.sum(e)
+
+
+def u2ERC_optimal(u1p_K, u2p_K, relations, K, THETA=1, solver=p5.p5gb, iterations=1000):
+    # :TODO fix optimisation
+    # s - number of parameters to find (R, C)
+    # eps - the fraction of inliers among outliers
+    # P - probability that the last proposal is all-inlier
+    # s = 3
+    # eps = 0.1
+    # P = 0.99
+    # E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb,
+    #                                          iterations=int(np.log10(1 - P) / np.log10(1 - eps ** s)))
+    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, relations, K, THETA, solver, iterations)
+    inliers_idxs = relations[:, inliers_corresp_idxs]
+
+    # input_rotation_C = np.concatenate((R2mrp(R), C))
+    # res = scipy.optimize.fmin(compute_epipolar_error,
+    #                           input_rotation_C,
+    #                           (u1p_K, u2p_K, inliers_idxs, K, THETA),
+    #                           xtol=10e-10)
+    # print(R)
+    # n_R = mrd2R(res[0:3])
+    # print(n_R)
+    # print(C)
+    # print(res[3:])
+    #
+    # new_E = R @ sqc(- n_R.T @ res[3:])
+    # F = K_inv.T @ new_E @ K_inv
+    return E, R, C, inliers_idxs, inliers_corresp_idxs
