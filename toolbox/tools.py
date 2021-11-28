@@ -1,4 +1,4 @@
-import numpy as np  # for matrix computation and linear algebra
+import numpy as np
 import scipy.linalg as lin_alg
 import random
 import matplotlib.pyplot as plt
@@ -110,7 +110,7 @@ def mrd2R(r):
     @param r: rotation vector
     @return: rotation matrix
     """
-    assert np.linalg.norm(r) < np.pi, "norm od r should be less than pi"
+    # assert np.linalg.norm(r) < np.pi, "norm od r should be less than pi"
     theta = np.linalg.norm(r)
     if theta == 0:
         return np.eye(3)
@@ -268,15 +268,6 @@ def u_correct_sampson(F, u1, u2):
 
 
 def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
-    """
-    @param c_u1:
-    @param c_u2:
-    @param c_F:
-    @param img1:
-    @param img2:
-    @param header:
-    @return:
-    """
     colors = ["dimgray", "rosybrown", "maroon", "peru",
               "moccasin", "yellow", "olivedrab", "lightgreen",
               "navy", "royalblue", "indigo", "hotpink"]
@@ -335,7 +326,6 @@ def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=
     c_u2p_K_undone /= c_u2p_K_undone[-1]
 
     for i in range(iterations):
-        # idxs = random.sample(range(c_u2p_K.shape[1]), 5)
         corresp_idxs = random.sample(range(correspondences.shape[1]), 5)
         corresp_idxs = correspondences[:, corresp_idxs]
         loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]
@@ -344,13 +334,13 @@ def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=
         for E in Es:
             F = K_inv.T @ E @ K_inv
             e = err_F_sampson(F, c_u1p_K[:, correspondences[0]], c_u2p_K[:, correspondences[1]])
-            e = e < theta
-            if np.count_nonzero(e) > best_score:
+            e = [(1 - (el ** 2) / (theta ** 2)) if el < theta else 0 for el in e]
+            if np.sum(e) > best_score:
                 R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
-                best_score = np.count_nonzero(e)
+                best_score = np.sum(e)
                 best_C = t_c
                 best_R = R_c
                 best_E = E
-                inliers_E_idxs = e
+                inliers_E_idxs = np.nonzero(e)
                 print(best_score)
-    return best_E, best_R, best_C, inliers_E_idxs
+    return best_E, best_R, best_C, inliers_E_idxs[0]

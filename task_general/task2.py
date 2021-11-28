@@ -1,9 +1,26 @@
 import numpy as np
+import scipy.optimize
 
 import toolbox
 from toolbox import *
 
-THETA = 0.5
+THETA = 2
+
+
+def compute_epipolar_error(vector, m_u1p, m_u2p, corres):
+    """
+    @param vector: [0:3] rotation
+    @param vector: [3:] translation
+    """
+    theta = THETA
+    l_u1p = m_u1p[:, corres[0]]
+    l_u2p = m_u2p[:, corres[1]]
+    R = mrd2R(vector[0:3])
+    E = R @ sqc(- R.T @ vector[3:])
+    e = err_F_sampson(E, l_u1p, l_u2p)
+    e = [((el ** 2) / (theta ** 2)) - 1 if el < theta else 1 for el in e]
+    return np.sum(e)
+
 
 if __name__ == "__main__":
     ### Preparing, loading the data
@@ -29,18 +46,30 @@ if __name__ == "__main__":
 
     u1p_K = e2p(u1)
     u2p_K = e2p(u2)
+    # s - number of parameters to find (R, C)
+    # eps - the fraction of inliers among outliers
+    # P - probability that the last proposal is all-inlier
+    s = 12
+    eps = 0.6
+    P = 0.99
+    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb,
+                                             iterations=int(np.log10(1 - P) / np.log10(1 - eps ** s)))
 
-    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb, iterations=100)
     inliers_idxs = points_1_2_relations[:, inliers_corresp_idxs]
-    # compute sampson error
+
+    input_rotation_C = np.concatenate((R2mrp(R), C))
+    res = scipy.optimize.fmin(compute_epipolar_error, input_rotation_C, (K_inv @ u1p_K, K_inv @ u2p_K, inliers_idxs),
+                              xtol=10e-10)
     print(R)
-    # print(R2mrp(R))
-    print(mrd2R(R2mrp(R)))
-    # R, C = optimise_R_C(R, C)
+    n_R = mrd2R(res[0:3])
+    print(n_R)
+    print(C)
+    print(res[3:])
 
-    F = K_inv.T @ E @ K_inv
-
-    draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], F, img1, img2)
+    new_E = R @ sqc(- n_R.T @ res[3:])
+    # F = K_inv.T @ new_E @ K_inv
+    draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], K_inv.T @ E @ K_inv, img1, img2)
+    draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], K_inv.T @ new_E @ K_inv, img1, img2)
 
     ### draw inliers and outliers
     fig = plt.figure(3)
