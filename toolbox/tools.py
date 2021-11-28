@@ -314,6 +314,7 @@ def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
 
 
 def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=1000):
+    print(iterations)
     best_score = 0
     best_R, best_C, best_E = [], [], []
     inliers_E_idxs = []

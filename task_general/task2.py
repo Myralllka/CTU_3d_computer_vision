@@ -1,10 +1,9 @@
-import numpy as np
 import scipy.optimize
 
 import toolbox
 from toolbox import *
 
-THETA = 2
+THETA = 1
 
 
 def compute_epipolar_error(vector, m_u1p, m_u2p, corres):
@@ -49,12 +48,12 @@ if __name__ == "__main__":
     # s - number of parameters to find (R, C)
     # eps - the fraction of inliers among outliers
     # P - probability that the last proposal is all-inlier
-    s = 12
-    eps = 0.6
-    P = 0.99
-    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb,
-                                             iterations=int(np.log10(1 - P) / np.log10(1 - eps ** s)))
-
+    # s = 3
+    # eps = 0.1
+    # P = 0.99
+    # E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb,
+    #                                          iterations=int(np.log10(1 - P) / np.log10(1 - eps ** s)))
+    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb, 1000)
     inliers_idxs = points_1_2_relations[:, inliers_corresp_idxs]
 
     input_rotation_C = np.concatenate((R2mrp(R), C))
