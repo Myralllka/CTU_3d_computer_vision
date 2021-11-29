@@ -4,16 +4,16 @@
 # Last change: $Date$
 #              $Revision$
 
-import numpy as npl
+import numpy as np
 
 
-class Ge():
+class Ge:
     """ 3D geometry export - base class defining the interface. """
 
-    def close(this):
+    def close(self):
         raise Exception("Unimplemented.")
 
-    def points(this):
+    def points(self):
         raise Exception("Unimplemented.")
 
     @staticmethod
@@ -21,7 +21,7 @@ class Ge():
 
         npt = X.shape[1]
 
-        if not color is None:
+        if color is not None:
             if isinstance(color, list) or isinstance(color, tuple):
                 color = np.array([color]).T
 
@@ -56,7 +56,7 @@ class Ge():
             ok = ~bad
             X = X[:, ok]
 
-            if not color is None:
+            if color is not None:
                 color = color[:, ok]
 
         return X, color
@@ -65,7 +65,7 @@ class Ge():
 class GePly(Ge):
     """ 3D geometry export into PLY file. """
 
-    def __init__(this, file, fmt='binary'):
+    def __init__(self, file, fmt='binary'):
         """
         Constructor.
 
@@ -77,77 +77,77 @@ class GePly(Ge):
         if fmt != 'binary' and fmt != 'ascii':
             raise Exception('Unknown ply format requested.')
 
-        this.fh = open(file, 'wt')  # opened ply file handle
-        this.binary = fmt == 'binary'  # PLY format: true = binary, false = ascii
+        self.fh = open(file, 'wt')  # opened ply file handle
+        self.binary = fmt == 'binary'  # PLY format: true = binary, false = ascii
 
-        this.vertices = []  # list of subarrays of vertices
-        this.colors = []  # list of subarrays of corresponding vertex colours
-        this.vcount = 0  # total count of vertices
+        self.vertices = []  # list of subarrays of vertices
+        self.colors = []  # list of subarrays of corresponding vertex colours
+        self.vcount = 0  # total count of vertices
 
-        if this.binary:
+        if self.binary:
             print('ply\nformat binary_little_endian 1.0\n',
-                  file=this.fh, end='')
+                  file=self.fh, end='')
         else:
-            print('ply\nformat ascii 1.0\n', file=this.fh, end='')
+            print('ply\nformat ascii 1.0\n', file=self.fh, end='')
 
-    def close(this):
+    def close(self):
         """
         Finish and close the PLY file.
 
         obj.close()
         """
 
-        if this.fh is None:
+        if self.fh is None:
             return
 
         is_colors = False
-        for c in this.colors:
-            if not c is None:
+        for c in self.colors:
+            if c is not None:
                 is_colors = True
 
         if is_colors:
-            for ci in range(len(this.colors)):
-                if this.colors[ci] is None:
-                    c = np.ones(np.shape(this.vertices[xi])) * 255
-                    this.colors[ci] = c.astype('uint8')
+            for ci in range(len(self.colors)):
+                if self.colors[ci] is None:
+                    c = np.ones(np.shape(self.vertices[ci])) * 255
+                    self.colors[ci] = c.astype('uint8')
 
         # write head (colours are used only if needed)
-        print('element vertex', this.vcount, file=this.fh)
-        print('property float x', file=this.fh)
-        print('property float y', file=this.fh)
-        print('property float z', file=this.fh)
+        print('element vertex', self.vcount, file=self.fh)
+        print('property float x', file=self.fh)
+        print('property float y', file=self.fh)
+        print('property float z', file=self.fh)
         if is_colors:
-            print('property uchar red', file=this.fh)
-            print('property uchar green', file=this.fh)
-            print('property uchar blue', file=this.fh)
+            print('property uchar red', file=self.fh)
+            print('property uchar green', file=self.fh)
+            print('property uchar blue', file=self.fh)
 
-        print('end_header', file=this.fh)
+        print('end_header', file=self.fh)
 
         # write data
-        if this.binary:
+        if self.binary:
             # vertices
-            for i in range(len(this.vertices)):
-                v = this.vertices[i].astype('float32').view('uint8')
+            for i in range(len(self.vertices)):
+                v = self.vertices[i].astype('float32').view('uint8')
                 if is_colors:
-                    c = this.colors[i].view('uint8')
+                    c = self.colors[i].view('uint8')
                     v = np.hstack((v, c))
-                v.tofile(this.fh)
+                v.tofile(self.fh)
 
         else:
             # vertices
-            for i in range(len(this.vertices)):
-                v = this.vertices[i]
+            for i in range(len(self.vertices)):
+                v = self.vertices[i]
                 if is_colors:
-                    c = this.colors[i]
+                    c = self.colors[i]
                     v = np.hstack((v, c))
-                    np.savetxt(this.fh, v, '%f %f %f %i %i %i')
+                    np.savetxt(self.fh, v, '%f %f %f %i %i %i')
                 else:
-                    np.savetxt(this.fh, v, '%f %f %f')
+                    np.savetxt(self.fh, v, '%f %f %f')
 
-        this.fh.close()
-        this.fh = None
+        self.fh.close()
+        self.fh = None
 
-    def points(this, X, color=None):
+    def points(self, X, color=None):
         """
         Export of points.
 
@@ -156,13 +156,13 @@ class GePly(Ge):
         color: None or 3x1 or 3xN numpy array of rgb values
         """
 
-        X, color = this.points_arg_helper(X, color, colortype='uint8')
+        X, color = self.points_arg_helper(X, color, colortype='uint8')
 
-        this.vcount += X.shape[1]
+        self.vcount += X.shape[1]
 
-        this.vertices += [np.ndarray.copy(X.T, order='C')]
+        self.vertices += [np.ndarray.copy(X.T, order='C')]
 
         if color is None:
-            this.colors += [color]
+            self.colors += [color]
         else:
-            this.colors += [np.ndarray.copy(color.T, order='C')]
+            self.colors += [np.ndarray.copy(color.T, order='C')]

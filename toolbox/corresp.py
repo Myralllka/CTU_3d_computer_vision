@@ -7,10 +7,10 @@
 import numpy as np
 
 
-class Corresp():
+class Corresp:
     """ Class for manipulating multiview pairwise correspondences. """
 
-    def __init__(this, n):
+    def __init__(self, n):
         """
         Constructor.
 
@@ -23,42 +23,42 @@ class Corresp():
         """
 
         # number of cameras        
-        this.n = n
+        self.n = n
 
         # image-to-image correspondences
         # Correspondences between camera i1 and i2 (i1 != i2), are stored in
         # this.m[ min(i1,i2) ][ max(i1,i2) ]. I.e., the 'matrix' this.m has
         # diagonal and under-diagonal entries empty.
-        this.m = [[None] * n for i in range(0, n)]
+        self.m = [[None] * n for i in range(0, n)]
 
         # numbers of correspondences
-        this.mcount = np.zeros((n, n), dtype=int)
+        self.mcount = np.zeros((n, n), dtype=int)
 
         # scene-to-image correspondences (pairs [X_id u_id])
-        this.Xu = [None] * n
+        self.Xu = [None] * n
 
-        this.Xucount = np.zeros(n, dtype=int)
+        self.Xucount = np.zeros(n, dtype=int)
 
         # flags, tentative or verified
-        this.Xu_verified = [None] * n
+        self.Xu_verified = [None] * n
 
         for i in range(0, n):
-            this.Xu[i] = np.zeros((0, 2), dtype=int)
-            this.Xu_verified[i] = np.zeros(0, dtype=bool)
+            self.Xu[i] = np.zeros((0, 2), dtype=int)
+            self.Xu_verified[i] = np.zeros(0, dtype=bool)
 
         # flag for each camera, true if it is selected, false otherwise
-        this.camsel = np.zeros(n, dtype=bool)
+        self.camsel = np.zeros(n, dtype=bool)
 
         # last used xid for automatic numbering of 3Dpoints      
-        this.last_xid = -1
+        self.last_xid = -1
 
         # working phase        
-        this.state = 'init'
-        this.lastjoin = None
+        self.state = 'init'
+        self.lastjoin = None
 
-        this.verbose = 1
+        self.verbose = 1
 
-    def add_pair(this, i1, i2, m12):
+    def add_pair(self, i1, i2, m12):
         """
         Add pairwise correspondences.
 
@@ -72,14 +72,14 @@ class Corresp():
                        image point in the image i1 and i2, respectively.
         """
 
-        if this.state != 'init':
+        if self.state != 'init':
             raise Exception('Cannot add correspondences now.')
 
         if i1 == i2:
             raise Exception('Pairs must be between different cameras')
 
-        if i1 < 0 or i2 < 0 or i1 >= this.n or i2 >= this.n:
-            raise Exception('Image indices must be in range 0..%i-1.', this.n)
+        if i1 < 0 or i2 < 0 or i1 >= self.n or i2 >= self.n:
+            raise Exception('Image indices must be in range 0..%i-1.', self.n)
 
         if m12.shape[1] != 2:
             raise Exception('Point correspondences must be in n x 2 matrix.')
@@ -89,17 +89,17 @@ class Corresp():
             i1, i2 = i2, i1
             m12 = m12[:, [1, 0]]
 
-        if not this.m[i1][i2] is None:
-            raise Exception('Pair %i-%i allready have correspondences.', i1, i2);
+        if not self.m[i1][i2] is None:
+            raise Exception('Pair %i-%i allready have correspondences.', i1, i2)
 
-        this.m[i1][i2] = m12
-        this.mcount[i1, i2] = m12.shape[0]
+        self.m[i1][i2] = m12
+        self.mcount[i1, i2] = m12.shape[0]
 
-        if this.verbose > 1:
+        if self.verbose > 1:
             print('  Image-to-Image: pair %i-%i + %i = %i' %
-                  (i1, i2, m12.shape[0], this.mcount.sum()))
+                  (i1, i2, m12.shape[0], self.mcount.sum()))
 
-    def start(this, i1, i2, inl, xid=None):
+    def start(self, i1, i2, inl, xid=None):
         """
         Select the first two cameras.
 
@@ -115,25 +115,25 @@ class Corresp():
                      same size as inl or None (automatically generated)
         """
 
-        if this.state != 'init':
+        if self.state != 'init':
             raise Exception('Cannot run start now.')
 
-        if this.verbose:
+        if self.verbose:
             print('Attaching %i,%i ---------' % (i1, i2))
-            print('  Image-to-Image total: %i' % this.mcount.sum())
+            print('  Image-to-Image total: %i' % self.mcount.sum())
 
-        this.camsel[i1] = True
-        this.camsel[i2] = True
-        this.lastjoin = i2
+        self.camsel[i1] = True
+        self.camsel[i2] = True
+        self.lastjoin = i2
 
-        this.state = 'join'
+        self.state = 'join'
 
-        this.new_x(i1, i2, inl, xid)
+        self.new_x(i1, i2, inl, xid)
 
-        this.state = 'clear'
-        this.lastjoin = None
+        self.state = 'clear'
+        self.lastjoin = None
 
-    def new_x(this, i1, i2, inl, xid=None):
+    def new_x(self, i1, i2, inl, xid=None):
         """
         New 3D points.
 
@@ -153,83 +153,83 @@ class Corresp():
         are removed.
         """
 
-        if this.state == 'join':
-            this.state = 'newx'
+        if self.state == 'join':
+            self.state = 'newx'
 
-        if this.state != 'newx':
+        if self.state != 'newx':
             raise Exception('Bad command order: new_x can be only after ' +
                             'a join or new_x.')
 
         if i1 > i2:
             i1, i2 = i2, i1
 
-        if not ((this.camsel[i1] and this.lastjoin == i2) or
-                (this.camsel[i2] and this.lastjoin == i1)):
+        if not ((self.camsel[i1] and self.lastjoin == i2) or
+                (self.camsel[i2] and self.lastjoin == i1)):
             raise Exception(
                 'New points can be triangulated only between the latest\n' +
                 'joined camera and some allready selected camera.')
 
         if xid is None:
-            xid = np.arange(0, len(inl)) + this.last_xid + 1
+            xid = np.arange(0, len(inl)) + self.last_xid + 1
 
         if len(inl) != len(xid):
             raise Exception('Inliers and IDs of 3D points must have ' +
                             'the same size')
 
         if len(xid) > 0:
-            this.last_xid = xid.max()
+            self.last_xid = xid.max()
 
-        if this.verbose:
+        if self.verbose:
             print('New X %i-%i --------------' % (i1, i2))
-            Xu_cnt_0 = this.Xucount.sum()
-            Xu_verified_0 = sum([v.sum() for v in this.Xu_verified])
-            m_cnt_0 = this.mcount.sum()
+            Xu_cnt_0 = self.Xucount.sum()
+            Xu_verified_0 = sum([v.sum() for v in self.Xu_verified])
+            m_cnt_0 = self.mcount.sum()
 
         n_new = len(inl)
 
-        newXu = np.vstack((xid, this.m[i1][i2][inl, 0])).T
-        this.Xu[i1] = np.vstack((this.Xu[i1], newXu))
-        this.Xucount[i1] += n_new;
-        this.Xu_verified[i1] = np.hstack((this.Xu_verified[i1],
+        newXu = np.vstack((xid, self.m[i1][i2][inl, 0])).T
+        self.Xu[i1] = np.vstack((self.Xu[i1], newXu))
+        self.Xucount[i1] += n_new
+        self.Xu_verified[i1] = np.hstack((self.Xu_verified[i1],
                                           np.ones(n_new, dtype=bool)))
 
-        if this.verbose > 1:
+        if self.verbose > 1:
             print('  Scene-to-Image: i%i + %i ok = %i (%i ok)' %
-                  (i1, n_new, this.Xucount.sum(),
-                   sum([v.sum() for v in this.Xu_verified])))
+                  (i1, n_new, self.Xucount.sum(),
+                   sum([v.sum() for v in self.Xu_verified])))
 
-        newXu = np.vstack((xid, this.m[i1][i2][inl, 1])).T
-        this.Xu[i2] = np.vstack((this.Xu[i2], newXu))
-        this.Xucount[i2] += n_new;
-        this.Xu_verified[i2] = np.hstack((this.Xu_verified[i2],
+        newXu = np.vstack((xid, self.m[i1][i2][inl, 1])).T
+        self.Xu[i2] = np.vstack((self.Xu[i2], newXu))
+        self.Xucount[i2] += n_new
+        self.Xu_verified[i2] = np.hstack((self.Xu_verified[i2],
                                           np.ones(n_new, dtype=bool)))
 
-        if this.verbose > 1:
+        if self.verbose > 1:
             print('  Scene-to-Image: i%i + %i ok = %i (%i ok)' %
-                  (i2, n_new, this.Xucount.sum(),
-                   sum([v.sum() for v in this.Xu_verified])))
+                  (i2, n_new, self.Xucount.sum(),
+                   sum([v.sum() for v in self.Xu_verified])))
 
         # remove all edges between i1 and i2
-        tmp = len(this.m[i1][i2])
-        this.m[i1][i2] = None
-        this.mcount[i1, i2] = 0
+        tmp = len(self.m[i1][i2])
+        self.m[i1][i2] = None
+        self.mcount[i1, i2] = 0
 
-        if this.verbose > 1:
+        if self.verbose > 1:
             print('  Image-to-Image: pair %i-%i -%i -> 0 = %i' %
-                  (i1, i2, tmp, this.mcount.sum()))
+                  (i1, i2, tmp, self.mcount.sum()))
 
         # propagate image-to-scene correspondences
-        this.__propagate_x(i1, xid, '4-propagate1')
-        this.__propagate_x(i2, xid, '5-propagate2')
+        self.__propagate_x(i1, xid, '4-propagate1')
+        self.__propagate_x(i2, xid, '5-propagate2')
 
-        if this.verbose:
+        if self.verbose:
             print('  Image-to-Image total: %i -> %i' %
-                  (m_cnt_0, this.mcount.sum()))
+                  (m_cnt_0, self.mcount.sum()))
             print('  Scene-to-Image total: %i (%i ok) -> %i (%i ok)' %
-                  (Xu_cnt_0, Xu_verified_0, this.Xucount.sum(),
-                   sum([v.sum() for v in this.Xu_verified])))
+                  (Xu_cnt_0, Xu_verified_0, self.Xucount.sum(),
+                   sum([v.sum() for v in self.Xu_verified])))
 
-    def verify_x(this, i, inl):
+    def verify_x(self, i, inl):
         """
         Set unverified scene-to-image correspondences to verified.
 
@@ -245,44 +245,44 @@ class Corresp():
                   correspondences in the camera i are deleted.
         """
 
-        if this.state == 'join' or this.state == 'newx':
-            this.state = 'verify'
+        if self.state == 'join' or self.state == 'newx':
+            self.state = 'verify'
 
-        if this.state != 'verify':
+        if self.state != 'verify':
             raise Exception('Bad command order: verify_x can be only after ' +
                             'a join, new_x or verify_x.')
 
-        if not this.camsel[i]:
+        if not self.camsel[i]:
             raise Exception('Cannot verify in a non-selected camera')
 
-        if this.Xu_verified[i][inl].any():
+        if self.Xu_verified[i][inl].any():
             raise Exception('(Some) inliers are allready verified')
 
-        if this.verbose:
+        if self.verbose:
             print('Verify X %i --------------\n' % i)
 
         # set the correspondences confirmed
-        this.Xu_verified[i][inl] = True
+        self.Xu_verified[i][inl] = True
 
-        num_outl = len(this.Xu_verified[i]) - this.Xu_verified[i].sum()
+        num_outl = len(self.Xu_verified[i]) - self.Xu_verified[i].sum()
 
         # get IDS of 3D points that become verified
-        xid = this.Xu[i][inl, 0]
+        xid = self.Xu[i][inl, 0]
 
         # keep only verified scene-to-image correspondences
-        this.Xu[i] = this.Xu[i][this.Xu_verified[i]]
-        this.Xu_verified[i] = np.ones(len(this.Xu[i]), dtype=bool)
-        this.Xucount[i] = len(this.Xu[i])
+        self.Xu[i] = self.Xu[i][self.Xu_verified[i]]
+        self.Xu_verified[i] = np.ones(len(self.Xu[i]), dtype=bool)
+        self.Xucount[i] = len(self.Xu[i])
 
-        if this.verbose:
+        if self.verbose:
             print('  Scene-to-Image: i%i - %i tent = %i (%i ok)' %
-                  (i, num_outl, this.Xucount.sum(),
-                   sum([v.sum() for v in this.Xu_verified])))
+                  (i, num_outl, self.Xucount.sum(),
+                   sum([v.sum() for v in self.Xu_verified])))
 
         # propagate scene-to-image correspondences from this camera
-        this.__propagate_x(i, xid, '3-propagate')
+        self.__propagate_x(i, xid, '3-propagate')
 
-    def join_camera(this, i, inl):
+    def join_camera(self, i, inl):
         """
         Add a camera to the set of selected cameras.
 
@@ -300,80 +300,80 @@ class Corresp():
           xid     .. identifiers of the 3D points that are kept
         """
 
-        if this.state != 'clear':
+        if self.state != 'clear':
             raise Exception('Bad command order: cannot join a camera now.')
 
-        if not this.lastjoin is None:
+        if not self.lastjoin is None:
             raise Exception('The previous join was not properly finalized.')
 
-        if this.camsel[i] or this.Xu[i] is None:
+        if self.camsel[i] or self.Xu[i] is None:
             raise Exception('Cannot join non-green camera')
 
-        if this.Xu_verified[i].any():
+        if self.Xu_verified[i].any():
             raise Exception('Data structures corruption')
 
-        if this.verbose:
+        if self.verbose:
             print('\nAttaching %i ------------' % i)
 
-            Xu_cnt_0 = this.Xucount.sum()
-            Xu_verified_0 = sum([i.sum() for i in this.Xu_verified])
-            m_cnt_0 = this.mcount.sum()
+            Xu_cnt_0 = self.Xucount.sum()
+            Xu_verified_0 = sum([i.sum() for i in self.Xu_verified])
+            m_cnt_0 = self.mcount.sum()
 
-        this.state = 'join'
+        self.state = 'join'
 
-        num_outl = len(this.Xu_verified[i]) - len(inl)
+        num_outl = len(self.Xu_verified[i]) - len(inl)
 
         # add this camera to the set
-        this.camsel[i] = True
-        this.lastjoin = i
+        self.camsel[i] = True
+        self.lastjoin = i
 
         # keep only the selected scene-to-image correspondences
-        this.Xu[i] = this.Xu[i][inl]
-        this.Xu_verified[i] = np.ones(len(this.Xu[i]), dtype=bool)
-        this.Xucount[i] = len(this.Xu[i])
+        self.Xu[i] = self.Xu[i][inl]
+        self.Xu_verified[i] = np.ones(len(self.Xu[i]), dtype=bool)
+        self.Xucount[i] = len(self.Xu[i])
 
-        if this.verbose:
+        if self.verbose:
             print('  Scene-to-Image: i%i - %i tent (%i->ok) = %i (%i ok)' %
-                  (i, num_outl, len(inl), this.Xucount.sum(),
-                   sum([i.sum() for i in this.Xu_verified])))
+                  (i, num_outl, len(inl), self.Xucount.sum(),
+                   sum([i.sum() for i in self.Xu_verified])))
 
         # get IDS of 3D points that are kept
-        xid = this.Xu[i][:, 0]
+        xid = self.Xu[i][:, 0]
 
         # propagate scene-to-image correspondences from this camera
-        this.__propagate_x(i, xid, '3-propagate')
+        self.__propagate_x(i, xid, '3-propagate')
 
-        if this.verbose:
+        if self.verbose:
             print('  Image-to-Image total: %i -> %i' % (m_cnt_0,
-                                                        this.mcount.sum()))
+                                                        self.mcount.sum()))
             print('  Scene-to-Image total: %i (%i ok) -> %i (%i ok)' %
                   (Xu_cnt_0, Xu_verified_0,
-                   this.Xucount.sum(),
-                   sum([i.sum() for i in this.Xu_verified])))
+                   self.Xucount.sum(),
+                   sum([i.sum() for i in self.Xu_verified])))
 
         return xid
 
-    def finalize_camera(this):
+    def finalize_camera(self):
         """
         Finalize a join of a camera.
         
         obj.finalize_camera()
         """
 
-        if this.lastjoin is None:
+        if self.lastjoin is None:
             raise Exception(
                 'There is no previously joined camera to finalize.')
 
-        if not this.camsel[this.lastjoin]:
+        if not self.camsel[self.lastjoin]:
             raise Exception('Internal data corrupted.')
 
-        this.state = 'clear'
+        self.state = 'clear'
 
-        i = this.lastjoin
+        i = self.lastjoin
 
-        for q in this.camsel.nonzero()[0]:
+        for q in self.camsel.nonzero()[0]:
 
-            if not this.Xu_verified[q].all():
+            if not self.Xu_verified[q].all():
                 raise Exception(
                     'There are some unverified scene-to-camera' +
                     'correspondences in the selected set (cam %i).' % q)
@@ -382,18 +382,18 @@ class Corresp():
 
             i1, i2 = (q, i) if q < i else (i, q)
 
-            if not this.m[i1][i2] is None:
+            if not self.m[i1][i2] is None:
                 raise Exception(
                     ('Found correspondences between cameras %i-%i ' +
                      'No corresspondences must remain between selected cameras.')
                     % (i1, i2))
 
-            if not this.m[i2][i1] is None:
+            if not self.m[i2][i1] is None:
                 raise Exception('Internal data corrupted.')
 
-        this.lastjoin = None
+        self.lastjoin = None
 
-    def get_m(this, i1, i2):
+    def get_m(self, i1, i2):
         """
         Get pairwise image-to-image correspondences.
 
@@ -413,15 +413,15 @@ class Corresp():
         if i1 == i2: raise Exception('Pairs must be between different cameras')
 
         if i1 < i2:
-            m1 = this.m[i1][i2][:, 0]
-            m2 = this.m[i1][i2][:, 1]
+            m1 = self.m[i1][i2][:, 0]
+            m2 = self.m[i1][i2][:, 1]
         else:
-            m1 = this.m[i2][i1][:, 1]
-            m2 = this.m[i2][i1][:, 0]
+            m1 = self.m[i2][i1][:, 1]
+            m2 = self.m[i2][i1][:, 0]
 
         return m1, m2
 
-    def get_Xu(this, i):
+    def get_Xu(self, i):
         """
         Get scene-to-image correspondences.
 
@@ -439,13 +439,13 @@ class Corresp():
                          true if the correspondence Xu(i,:) has been verified
                          (in join_camera or verify_x), false otherwise.
         """
-        X = this.Xu[i][:, 0]
-        u = this.Xu[i][:, 1]
-        Xu_verified = this.Xu_verified[i]
+        X = self.Xu[i][:, 0]
+        u = self.Xu[i][:, 1]
+        Xu_verified = self.Xu_verified[i]
 
         return X, u, Xu_verified
 
-    def get_Xucount(this, ilist):
+    def get_Xucount(self, ilist):
         """
         Get scene-to-image correspondence counts.
 
@@ -462,10 +462,10 @@ class Corresp():
                                 state.
         """
 
-        Xucount = this.Xucount[ilist]
+        Xucount = self.Xucount[ilist]
         Xu_verifiedcount = np.zeros_like(Xucount)
         for i in range(0, len(ilist)):
-            Xu_verifiedcount[i] = this.Xu_verified[ilist[i]].sum()
+            Xu_verifiedcount[i] = self.Xu_verified[ilist[i]].sum()
 
         return Xucount, Xu_verifiedcount
 
@@ -494,7 +494,7 @@ class Corresp():
 
         return (ilist * this.camsel).nonzero()[0]
 
-    def get_green_cameras(this, what='linear'):
+    def get_green_cameras(self, what='linear'):
         """
         Get not-selected cameras having scene-to-image cor.
 
@@ -510,13 +510,13 @@ class Corresp():
                   matching to i (!!).
         """
 
-        i = np.zeros(this.n, dtype=bool)
-        n = np.zeros(this.n, dtype=int)
+        i = np.zeros(self.n, dtype=bool)
+        n = np.zeros(self.n, dtype=int)
 
-        for k in range(0, this.n):
-            if not this.camsel[k] and len(this.Xu[k]) > 0:
+        for k in range(0, self.n):
+            if not self.camsel[k] and len(self.Xu[k]) > 0:
                 i[k] = True
-                n[k] = len(np.unique(this.Xu[k][:, 0]))
+                n[k] = len(np.unique(self.Xu[k][:, 0]))
 
         if what == 'linear':
             i = i.nonzero()[0]
@@ -530,7 +530,7 @@ class Corresp():
 
         return i, n
 
-    def get_selected_cameras(this, what='linear'):
+    def get_selected_cameras(self, what='linear'):
         """
         Get allready selected cameras.
 
@@ -544,27 +544,27 @@ class Corresp():
         """
 
         if what == 'logical':
-            return this.camsel
+            return self.camsel
         elif what == 'linear':
-            return this.camsel.nonzero()[0]
+            return self.camsel.nonzero()[0]
         else:
             raise Exception('Unknown value for the 2nd parameter.');
 
-    def __propagate_x(this, i, xids, substate):
+    def __propagate_x(self, i, xids, substate):
         """ Propagete scene-to-image correspondences."""
 
-        if not this.camsel[i]:
+        if not self.camsel[i]:
             raise Exception('Cannot propagate from a non-selected camera.')
 
         xids = np.unique(xids)
 
-        xinx, _ = Corresp.findinx(this.Xu[i][:, 0], xids)
+        xinx, _ = Corresp.findinx(self.Xu[i][:, 0], xids)
 
         # selected corresponding point ids in the camera i (not unique):
-        i_xids = this.Xu[i][xinx, 0]
-        i_uids = this.Xu[i][xinx, 1]
+        i_xids = self.Xu[i][xinx, 0]
+        i_uids = self.Xu[i][xinx, 1]
 
-        for q in range(0, this.n):
+        for q in range(0, self.n):
             # also red must be considered!
 
             if q == i: continue
@@ -576,19 +576,19 @@ class Corresp():
                 i1, i2 = q, i  # correspondences are in m{q,i}
                 ci, cq = 1, 0  # i corresponds to the second col, q to the first
 
-            if not this.m[i1][i2] is None:
-                inx_i, inx_iq = Corresp.findinx(i_uids, this.m[i1][i2][:, ci])
+            if not self.m[i1][i2] is None:
+                inx_i, inx_iq = Corresp.findinx(i_uids, self.m[i1][i2][:, ci])
 
                 if len(inx_i) > 0:
                     xid = i_xids[inx_i]
-                    q_uid = this.m[i1][i2][inx_iq, cq]
+                    q_uid = self.m[i1][i2][inx_iq, cq]
 
                     # do not include X-u correspondences that are allready there
                     keep = np.ones(len(xid), dtype=bool)
 
                     for k in range(0, len(xid)):
-                        for p in (xid[k] == this.Xu[q][:, 0]).nonzero()[0]:
-                            if q_uid[k] == this.Xu[q][p, 1]:
+                        for p in (xid[k] == self.Xu[q][:, 0]).nonzero()[0]:
+                            if q_uid[k] == self.Xu[q][p, 1]:
                                 keep[k] = False
 
                     new_Xu = np.vstack((xid[keep], q_uid[keep])).T
@@ -597,29 +597,29 @@ class Corresp():
                     # but only the first is used and duplicated now
                     new_Xu = np.unique(new_Xu, axis=0)
 
-                    this.Xu[q] = np.vstack((this.Xu[q], new_Xu))
-                    this.Xu_verified[q] = np.hstack((this.Xu_verified[q],
+                    self.Xu[q] = np.vstack((self.Xu[q], new_Xu))
+                    self.Xu_verified[q] = np.hstack((self.Xu_verified[q],
                                                      np.zeros(len(new_Xu), dtype=bool)))
 
-                    this.Xucount[q] = len(this.Xu[q])
-                    if this.verbose > 1:
+                    self.Xucount[q] = len(self.Xu[q])
+                    if self.verbose > 1:
                         print('  Scene-to-Image: i%i + %i tent = %i (%i ok)' %
-                              (q, len(new_Xu), this.Xucount.sum(),
-                               sum([v.sum() for v in this.Xu_verified])))
+                              (q, len(new_Xu), self.Xucount.sum(),
+                               sum([v.sum() for v in self.Xu_verified])))
 
                     # remove image-to-image correspondences propagated
                     # to scene-to-image
-                    keep = np.ones(len(this.m[i1][i2]), dtype=bool)
+                    keep = np.ones(len(self.m[i1][i2]), dtype=bool)
                     keep[inx_iq] = False
-                    this.m[i1][i2] = this.m[i1][i2][keep]
-                    this.mcount[i1, i2] = len(this.m[i1][i2])
-                    if len(this.m[i1][i2]) == 0:
-                        this.m[i1][i2] = None
+                    self.m[i1][i2] = self.m[i1][i2][keep]
+                    self.mcount[i1, i2] = len(self.m[i1][i2])
+                    if len(self.m[i1][i2]) == 0:
+                        self.m[i1][i2] = None
 
-                    if this.verbose > 1:
+                    if self.verbose > 1:
                         print('  Image-to-Image: pair %i-%i -%i -> %i = %i' %
                               (i1, i2, len(inx_iq),
-                               this.mcount[i1, i2], this.mcount.sum()))
+                               self.mcount[i1, i2], self.mcount.sum()))
 
     @staticmethod
     def findinx(i1, i2):

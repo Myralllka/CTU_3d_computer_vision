@@ -5,8 +5,8 @@ THETA = 1
 
 if __name__ == "__main__":
     ### Preparing, loading the data
-    view_1 = 1
-    view_2 = 2
+    view_1 = 6
+    view_2 = 7
 
     points_view_1 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_1)).T
     points_view_2 = np.loadtxt('task_general/data/u_{:02}.txt'.format(view_2)).T
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     u1p_K = e2p(u1)
     u2p_K = e2p(u2)
 
-    E, R, C, inliers_idxs, inliers_corresp_idxs = u2ERC_optimal(u1p_K, u2p_K, points_1_2_relations, K)
+    E, R, t, inliers_idxs, inliers_corresp_idxs = u2ERt_optimal(u1p_K, u2p_K, points_1_2_relations, K)
 
     draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], K_inv.T @ E @ K_inv, img1, img2)
 

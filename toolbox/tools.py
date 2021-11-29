@@ -3,6 +3,7 @@ import scipy.linalg as lin_alg
 import random
 import matplotlib.pyplot as plt
 import p5
+import scipy.optimize
 
 
 def e2p(u_e):
@@ -56,7 +57,9 @@ def sqc(x):
     :param x: vector 3×1
     :return: skew symmetric matrix (3×3) for cross product with x
     """
-    return np.array([[0, x[2], -x[1]], [-x[2], 0, x[0]], [x[1], -x[0], 0]])
+    return np.array([[0, x[2], -x[1]],
+                     [-x[2], 0, x[0]],
+                     [x[1], -x[0], 0]])
 
 
 def get_intersect_lines(a1, a2, b1, b2):
@@ -104,7 +107,7 @@ def R2mrp(R):
     return u * theta
 
 
-def mrd2R(r):
+def mrp2R(r):
     """
     modified rodrigues parameters to matrix
      source: https://courses.cs.duke.edu/fall13/compsci527/notes/rodrigues.pdf
@@ -133,6 +136,7 @@ def Eu2Rt(E, u1, u2):
     Rz = np.array([[0, 1, 0],
                    [-1, 0, 0],
                    [0, 0, 1]])
+
     U, D, Vt = np.linalg.svd(E)
     if np.linalg.det(U) < 0:
         U = -U
@@ -140,26 +144,28 @@ def Eu2Rt(E, u1, u2):
         Vt = -Vt
     R_1 = U @ Rz @ Vt
     R_2 = U @ Rz.T @ Vt
-    C_1 = U[:, -1]
-    C_2 = -C_1
+    t_1 = U[:, -1]
+    t_2 = -t_1
 
     P1_c = np.c_[(np.eye(3), np.zeros((3, 1)))]
 
     result_index_R_C_Ps = []
 
-    for R_loop, C_loop in [[R_1, C_1], [R_1, C_2], [R_2, C_1], [R_2, C_2]]:
-        P2_c = np.c_[(R_loop, (R_loop @ C_loop).reshape(3, 1))]
-        X = Pu2X(P1_c, P2_c, u1, u2)
-        X = p2e(X)
+    for R_loop, t_loop in [[R_1, t_1], [R_1, t_2], [R_2, t_1], [R_2, t_2]]:
+        P2_c = np.c_[(R_loop, t_loop.reshape(3, 1))]
+        X = p2e(Pu2X(P1_c, P2_c, u1, u2))
+
         a = np.logical_and((np.divide((np.sum(np.multiply(X, u1), axis=0)),
                                       (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u1, axis=0))))) > 0),
                            (np.divide((np.sum(np.multiply(X, u2), axis=0)),
                                       (np.multiply((np.linalg.norm(X, axis=0)), (np.linalg.norm(u2, axis=0))))) > 0))
 
-        result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, C_loop])
+        result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, t_loop])
 
-    c, R, C = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
-    return [R, C]
+    c, R, t = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
+    if c != u1.shape[1]:
+        return None, None
+    return [R, t]
 
 
 def Pu2X(P1, P2, u1, u2):
@@ -176,16 +182,19 @@ def Pu2X(P1, P2, u1, u2):
     for i in range(len(u1[0])):
         c_u = u1[:, i]
         c_v = u2[:, i]
-        D = np.c_[c_u[0] * P1[2] - P1[0],
-                  c_u[1] * P1[2] - P2[0],
-                  c_v[0] * P2[2] - P1[1],
-                  c_v[1] * P2[2] - P2[1]]
+        # D = np.c_[c_u[0] * P1[2] - P1[0],
+        #           c_u[1] * P1[2] - P1[1],
+        #           c_v[0] * P2[2] - P2[0],
+        #           c_v[1] * P2[2] - P2[1]]
 
-        # M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
-        # _, _, Vh = np.linalg.svd(M)
-        # res_X.append(Vh[-1, 2:] / Vh[-1, -1])
-        _, _, Vh = np.linalg.svd(D.T @ D)
-        res_X.append(Vh[:, -1] / Vh[-1][-1])
+        M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
+        _, _, Vh = np.linalg.svd(M)
+        res_X.append(Vh[-1, 2:] / Vh[-1, -1])
+
+        # _, _, Vh = np.linalg.svd(D)
+        # x = Vh.T[:, -1]
+        # x /= x[-1]
+        # res_X.append(x)
     return np.array(res_X).T
 
 
@@ -214,11 +223,8 @@ def err_epipolar(F, u1, u2):
     @param u1, u2: 3*n np matrix
     @return: 1*n no matrix
     """
-    c_l = F @ u1
-    # line normalisation
-    # c_l /= np.sqrt(c_l[0] ** 2 + c_l[1] ** 2)
-    e = np.abs(np.sum(u2 * c_l, axis=0))
-    return e
+    t = np.einsum("ij,ij->i", u2.T, (F @ u1).T).T
+    return np.abs(t)
 
 
 def err_reprojection(P1, P2, u1, u2, X):
@@ -265,7 +271,8 @@ def u_correct_sampson(F, u1, u2):
     F2 = F.T[1]
     right = np.vstack((F1 @ u2, F2 @ u2, F1 @ u1, F2 @ u1))
     right2 = fraction * right
-    return original - right2
+    res = original - right2
+    return e2p(res[:2]), e2p(res[2:])
 
 
 def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
@@ -314,10 +321,9 @@ def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
     plt.show()
 
 
-def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=1000):
-    print(iterations)
+def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=1000):
     best_score = 0
-    best_R, best_C, best_E = [], [], []
+    best_R, best_t, best_E = [], [], []
     inliers_E_idxs = []
 
     K_inv = np.linalg.inv(K)
@@ -339,16 +345,18 @@ def ransac_E(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=
             e = [(1 - (el ** 2) / (theta ** 2)) if el < theta else 0 for el in e]
             if np.sum(e) > best_score:
                 R_c, t_c = Eu2Rt(E, loop_u1p, loop_u1p)
+                if R_c is None:
+                    continue
                 best_score = np.sum(e)
-                best_C = t_c
                 best_R = R_c
+                best_t = t_c
                 best_E = E
                 inliers_E_idxs = np.nonzero(e)
                 print(best_score)
-    return best_E, best_R, best_C, inliers_E_idxs[0]
+    return best_E, best_R, best_t, inliers_E_idxs[0]
 
 
-def compute_epipolar_error(vector, m_u1p, m_u2p, corres, m_K, theta):
+def minimisation_function(vector, m_u1p, m_u2p, corres, m_K):
     """
     function to minimise
 
@@ -357,38 +365,29 @@ def compute_epipolar_error(vector, m_u1p, m_u2p, corres, m_K, theta):
     """
     l_u1p = m_u1p[:, corres[0]]
     l_u2p = m_u2p[:, corres[1]]
-    R = mrd2R(vector[0:3])
-    E = R @ sqc(- R.T @ vector[3:])
+
+    R = mrp2R(vector[0:3])
+    E = sqc(- vector[3:]) @ R
+
     kinv = np.linalg.inv(m_K)
     e = err_F_sampson(kinv.T @ E @ kinv, l_u1p, l_u2p)
-    e = [((el ** 2) / (theta ** 2)) - 1 if el < theta else 1 for el in e]
     return np.sum(e)
 
 
-def u2ERC_optimal(u1p_K, u2p_K, relations, K, THETA=1, solver=p5.p5gb, iterations=1000):
-    # :TODO fix optimisation
-    # s - number of parameters to find (R, C)
-    # eps - the fraction of inliers among outliers
-    # P - probability that the last proposal is all-inlier
-    # s = 3
-    # eps = 0.1
-    # P = 0.99
-    # E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, points_1_2_relations, K, THETA, p5.p5gb,
-    #                                          iterations=int(np.log10(1 - P) / np.log10(1 - eps ** s)))
-    E, R, C, inliers_corresp_idxs = ransac_E(u1p_K, u2p_K, relations, K, THETA, solver, iterations)
-    inliers_idxs = relations[:, inliers_corresp_idxs]
+def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=1000):
+    E, R, t, inliers_corresp_idxs = ransac_ERt_inliers(u1p_K, u2p_K, corresp, K, THETA, solver, iterations)
+    inliers_idxs = corresp[:, inliers_corresp_idxs]
 
-    # input_rotation_C = np.concatenate((R2mrp(R), C))
-    # res = scipy.optimize.fmin(compute_epipolar_error,
-    #                           input_rotation_C,
-    #                           (u1p_K, u2p_K, inliers_idxs, K, THETA),
-    #                           xtol=10e-10)
-    # print(R)
-    # n_R = mrd2R(res[0:3])
-    # print(n_R)
-    # print(C)
-    # print(res[3:])
-    #
-    # new_E = R @ sqc(- n_R.T @ res[3:])
-    # F = K_inv.T @ new_E @ K_inv
-    return E, R, C, inliers_idxs, inliers_corresp_idxs
+    # return E, R, t, inliers_idxs, inliers_corresp_idxs
+
+    input_rotation_t = np.concatenate((R2mrp(R), t))
+    res = scipy.optimize.fmin(minimisation_function,
+                              input_rotation_t,
+                              (u1p_K, u2p_K, inliers_idxs, K),
+                              xtol=10e-10)
+    n_R = mrp2R(res[0:3])
+    n_t = res[3:]
+    new_E = sqc(-n_t) @ n_R
+
+    return new_E, n_R, n_t, inliers_idxs, inliers_corresp_idxs
+

@@ -31,11 +31,11 @@ K = [[ 1000,    0, 500 ],
 
 ### Hints
 
-Let u1, v1 be the image coordinates of projected vertices X1 and u2, v2 be the coordinates of projected vertices X2. The desired picture can be drawn, e.g., in python like this:
+Let u1, v1 be the image coordinates of projected vertices X1 and u2, v2 be the coordinates of projected vertices X2. The desired picture can be drawn, e.g., in python like self:
 ```
 plt.plot( u1, v1, 'r-', linewidth=2 )
 plt.plot( u2, v2, 'b-', linewidth=2 )
 plt.plot( [u1, u2], [v1, v2 ], 'k-', linewidth=2 )
 plt.gca().invert_yaxis()
-plt.axis( 'equal' ) # this kind of plots should be isotropic
+plt.axis( 'equal' ) # self kind of plots should be isotropic
 ```
