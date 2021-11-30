@@ -34,9 +34,9 @@ def plot_csystem(ax, base, origin, name, color=None):
                 length=1,
                 arrow_length_ratio=0.1,
                 color=colors[2])
-    ax.text(base[0, 0], base[1, 0], base[2, 0], name + "_x")
-    ax.text(base[0, 1], base[1, 1], base[2, 1], name + "_y")
-    ax.text(base[0, 2], base[1, 2], base[2, 2], name + "_z")
+    ax.text(base[0, 0] + origin[0], base[1, 0] + origin[1], base[2, 0] + origin[2], name + "_x")
+    ax.text(base[0, 1] + origin[0], base[1, 1] + origin[1], base[2, 1] + origin[2], name + "_y")
+    ax.text(base[0, 2] + origin[0], base[1, 2] + origin[1], base[2, 2] + origin[2], name + "_z")
 
 
 def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
@@ -90,3 +90,12 @@ def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
 
     plt.imshow(img2)
     plt.show()
+
+
+def show_cameras(m_Cs):
+    """
+
+    @param m_Cs:
+    @return:
+    """
+    pass

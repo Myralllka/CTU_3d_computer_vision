@@ -4,8 +4,9 @@ import random
 import p5
 import scipy.optimize
 
-
 # implementation of toolbox for tdv course + some other functions
+import toolbox.p3p
+
 
 def e2p(u_e):
     """
@@ -129,9 +130,9 @@ def Eu2Rt(E, u1, u2):
     Notes: The sessential matrix E is decomposed such that E = R * sqc( b ).
 
     Synopsis: [R, t] = EutoRt( E, u1, u2 )
-    :param E: essential matrix (3×3)
-    :param u1, u2: corresponding image points in homogeneous coordinates (3×n), used for cheirality test
-    :return: R, t - relative rotation (3×3) or [] if cheirality fails, relative translation, euclidean (3×1), unit length
+    @param E: essential matrix (3×3)
+    @param u1, u2: corresponding image points in homogeneous coordinates (3×n), used for cheirality test
+    @return: R, t - relative rotation (3×3) or [None, None] if cheirality fails, relative translation, euclidean (3×1), unit length
     """
     # E = R cross C, decomposition:
     Rz = np.array([[0, 1, 0],
@@ -190,6 +191,29 @@ def Pu2X(P1, P2, u1, u2):
     return np.array(res_X).T
 
 
+def Pu2X_optimised(P1, P2, u1, u2, F, corresp):
+    """
+    Pu2X wrapper, that use F for sampson points correction before the reconstruction
+
+    Synopsis: X = Pu2X( P1, P2, u1, u2, F, corresp)
+    @param P1, P2: projective camera matrices (3×4)
+    @param u1, u2: corresponding image points in homogeneous coordinates (3×n)
+    @param F: fundamental matrix
+    @param corresp: image correspondences for u1 u2
+    @return: X - reconstructed 3D points, homogeneous (4×n)
+    """
+    res_X = []
+    u1_corrected, u2_corrected = u_correct_sampson(F, u1[:, corresp[0]], u2[:, corresp[1]])
+
+    for i in range(len(u1_corrected[0])):
+        c_u = u1_corrected[:, i]
+        c_v = u2_corrected[:, i]
+        M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
+        _, _, Vh = np.linalg.svd(M)
+        res_X.append(Vh[-1, 2:] / Vh[-1, -1])
+    return np.array(res_X).T
+
+
 def err_F_sampson(F, u1, u2):
     """
     Sampson error on epipolar geometry
@@ -240,6 +264,21 @@ def err_reprojection(P1, P2, u1, u2, X):
     return e1 + e2
 
 
+def err_reprojection_half(P, X, u):
+    """
+    compute projection error given P, u, X
+
+    @param P: 3*4 np matrix
+    @param u: 3*n np matrix
+    @param X: 4*n matrix
+
+    @return: 1*n np matrix
+    """
+    e = P @ X
+    e /= e[-1]
+    return np.abs(np.sum(e - u, axis=0))
+
+
 def u_correct_sampson(F, u1, u2):
     """
     Sampson correction of correspondences
@@ -267,6 +306,47 @@ def u_correct_sampson(F, u1, u2):
     return e2p(res[:2]), e2p(res[2:])
 
 
+def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
+    s = 3
+    P = 0.999
+    eps = 0.1
+    theta = 100
+    ###
+
+    best_score = 0
+    best_R, best_t = [], []
+    inliers_idxs = []
+    counter = 0
+    c_X = e2p(c_X)
+    N = np.log(1 - P) / np.log(1 - eps ** s)
+    for i in range(300):
+        # while counter <= N:
+        corresp_idxs = random.sample(range(corresp_Xu.shape[1]), s)
+        corresp_idxs = corresp_Xu[:, corresp_idxs]
+        loop_X = c_X[:, corresp_idxs[0]]
+        loop_up = c_up_K[:, corresp_idxs[1]]
+        loop_up_K_undone = np.linalg.inv(c_K) @ loop_up
+        loop_up_K_undone /= loop_up_K_undone[-1]
+        l_X_new_arr = toolbox.p3p.p3p_grunert(loop_X, np.linalg.inv(c_K) @ loop_up)
+        for l_X_new in l_X_new_arr:
+            n_R, n_t = toolbox.p3p.XX2Rt_simple(loop_X, l_X_new)
+            l_P = c_K @ np.c_[n_R, n_t]
+
+            e = err_reprojection_half(l_P, c_X[:, corresp_Xu[0]], c_up_K[:, corresp_Xu[1]])
+            e = [(1 - (el ** 2) / (theta ** 2)) if el < theta else 0 for el in e]
+            if np.sum(e) > best_score:
+                best_score = np.sum(e)
+                best_R = n_R
+                best_t = n_t
+                inliers_idxs = np.nonzero(e)
+                eps += np.count_nonzero(e) / corresp_Xu.shape[1]
+                N = np.log(1 - P) / np.log(1 - eps ** s)
+                print(best_score)
+        counter += 1
+
+    return best_R, best_t, inliers_idxs[0]
+
+
 def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_matrix_estimator, iterations=1000):
     """
     Find E, R, t and respective inliers given points correspondences with RANSAC method.
@@ -278,6 +358,16 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
     @param iterations: number of iterations for ransac
     @return: E, R, t, inliers
     """
+    # P     -- probability that the last proposal is all-inlier
+    # eps   -- the fraction of inliers among primitives
+    # s     -- minimal configuration size (2 for line, 5 for E estimation)
+
+    s = 5
+    P = 0.99
+    eps = 0.1
+
+    ###
+
     best_score = 0
     best_R, best_t, best_E = [], [], []
     inliers_E_idxs = []
@@ -289,7 +379,10 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
     c_u2p_K_undone = K_inv @ c_u2p_K
     c_u2p_K_undone /= c_u2p_K_undone[-1]
 
-    for i in range(iterations):
+    counter = 0
+    N = np.log(1 - P) / np.log(1 - eps ** s)
+    while counter <= N:
+        # for i in range(iterations):
         corresp_idxs = random.sample(range(correspondences.shape[1]), 5)
         corresp_idxs = correspondences[:, corresp_idxs]
         loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]
@@ -308,7 +401,12 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
                 best_t = t_c
                 best_E = E
                 inliers_E_idxs = np.nonzero(e)
+                eps += np.count_nonzero(e) / correspondences.shape[1]
+                N = np.log(1 - P) / np.log(1 - eps ** s)
                 print(best_score)
+                print(counter, N)
+            counter += 1
+
     return best_E, best_R, best_t, inliers_E_idxs[0]
 
 
