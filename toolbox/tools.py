@@ -119,7 +119,7 @@ def mrp2R(r):
     if theta == 0:
         return np.eye(3)
     u = r / theta
-    return np.eye(3) * np.cos(theta) + (1 - np.cos(theta)) * np.outer(u, u) + sqc(u) * np.sin(theta)
+    return np.eye(3) * np.cos(theta) + (1 - np.cos(theta)) * np.outer(u, u) - sqc(u) * np.sin(theta)
 
 
 def Eu2Rt(E, u1, u2):
@@ -172,6 +172,7 @@ def Eu2Rt(E, u1, u2):
     c, R, t = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
     if c != u1.shape[1]:
         return None, None
+    # t /= (t[0] ** 2 + t[1] ** 2) / 2
     return [R, t]
 
 
@@ -217,8 +218,9 @@ def err_F_sampson(F, u1, u2):
     alg_epipolar_error = err_epipolar(F, u1, u2)
     S = np.array([[1, 0, 0],
                   [0, 1, 0]])
-    SF = S @ F
-    denom = np.sqrt(np.linalg.norm(SF @ u1, axis=0) ** 2 + np.linalg.norm(SF @ u2, axis=0) ** 2)
+
+    denom = np.sqrt(np.linalg.norm(S @ F @ u1, axis=0) ** 2 +
+                    np.linalg.norm(S @ F.T @ u2, axis=0) ** 2)
 
     return alg_epipolar_error / denom
 
@@ -230,8 +232,7 @@ def err_epipolar(F, u1, u2):
     @param u1, u2: 3*n np matrix
     @return: 1*n no matrix
     """
-    t = np.einsum("ij,ij->i", u2.T, (F @ u1).T).T
-    return np.abs(t)
+    return np.abs(np.sum((F @ u1) * u2, axis=0))
 
 
 def err_reprojection(P1, P2, u1, u2, X):
@@ -385,17 +386,19 @@ def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=
     E, R, t, inliers_corresp_idxs = ransac_ERt_inliers(u1p_K, u2p_K, corresp, K, THETA, solver, iterations)
     inliers_idxs = corresp[:, inliers_corresp_idxs]
 
-    return E, R, t, inliers_idxs, inliers_corresp_idxs
-    #
-    # input_rotation_t = np.concatenate((R2mrp(R), t))
-    # res = scipy.optimize.fmin(minimisation_function,
-    #                           input_rotation_t,
-    #                           (u1p_K, u2p_K, inliers_idxs, K),
-    #                           xtol=10e-10)
-    # n_R = mrp2R(res[0:3])
-    # n_t = res[3:]
-    # new_E = sqc(-n_t) @ n_R
-    # return new_E, n_R, n_t, inliers_idxs, inliers_corresp_idxs
+    input_rotation_t = np.concatenate((R2mrp(R), t))
+
+    res = scipy.optimize.fmin(minimisation_function,
+                              input_rotation_t,
+                              (u1p_K, u2p_K, inliers_idxs, K),
+                              xtol=10e-10)
+    n_R = mrp2R(res[0:3])
+    n_t = res[3:]
+    # make scale eq to 1
+    n_t /= np.sqrt(n_t[0] ** 2 + n_t[1] ** 2 + n_t[2] ** 2)
+
+    n_E = sqc(-n_t) @ n_R
+    return n_E, n_R, n_t, inliers_idxs, inliers_corresp_idxs
 
 
 def plot_csystem(ax, base, origin, name, color=None):

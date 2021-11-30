@@ -76,9 +76,10 @@ if __name__ == "__main__":
 
     fig = plt.figure()
     ax = plt.axes(projection='3d')
-    ax.set_xlim(-3, 3)
-    ax.set_ylim(-3, 3)
-    ax.set_zlim(-3, 3)
+    scale = 4
+    ax.set_xlim(-scale, scale)
+    ax.set_ylim(-scale, scale)
+    ax.set_zlim(-scale, scale)
 
     origin = np.eye(3)
     d = np.array([0, 0, 0])
@@ -88,11 +89,10 @@ if __name__ == "__main__":
 
     ax.plot3D(X[0], X[1], X[2], 'b.')
     ax.plot3D(0, 0, 0, "r.")
-
     plt.show()
 
-    g = ge.GePly('out.ply')
-    g.points(X)  # Xall contains euclidean points (3xn matrix), ColorAll RGB colors (3xn or 3x1, optional)
-    g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
-    g.points((R.T @ -t).reshape(3, 1), color=np.array([.0, 255.0, .0]).reshape(3, 1))
-    g.close()
+    # g = ge.GePly('out.ply')
+    # g.points(X)  # Xall contains euclidean points (3xn matrix), ColorAll RGB colors (3xn or 3x1, optional)
+    # g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
+    # g.points((R.T @ -t).reshape(3, 1), color=np.array([.0, 255.0, .0]).reshape(3, 1))
+    # g.close()
