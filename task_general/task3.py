@@ -86,19 +86,13 @@ if __name__ == "__main__":
     #  initial pair reconstruction
 
     E, R, t, inliers_idxs, inliers_corresp_idxs = u2ERt_optimal(u1p_K, u2p_K, corresp, K)
-
     Es.append(E)
-
     F = K_inv.T @ (sqc(-t) @ R) @ K_inv
 
     # draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], F, imgs[a1], imgs[a2])
 
-    # P1_c = np.c_[(K @ np.eye(3), np.zeros((3, 1)))]
-    # P2_c = np.c_[(K @ R, (K @ t).reshape(3, 1))]
     cameras[a1].set_P(K, np.eye(3), np.zeros((3, 1)))
     cameras[a2].set_P(K, R, t)
-    # Ps.append(P1_c)
-    # Ps.append(P2_c)
     X = p2e(Pu2X_optimised(cameras[a1].P, cameras[a2].P, u1p_K, u2p_K, F, inliers_idxs))
     # init 3d points
     c.start(imgs_order[0], imgs_order[1], inliers_corresp_idxs)
@@ -119,8 +113,7 @@ if __name__ == "__main__":
         #     mi, mic = c.get_m(i, ic)
         # new_Xs = p2e(Pu2X_optimised(P1_c, P2_c, u1p_K, u2p_K, F, inliers_idxs))
 
-    #  make a 3d plot
-
+    #  make a 3d plot of point cloud
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     scale = 6
@@ -131,19 +124,11 @@ if __name__ == "__main__":
     origin = np.eye(3)
     d = np.array([0, 0, 0])
 
-    # plot_csystem(ax, origin, d, 'c{}'.format(imgs_order[0]))
+    # plot cameras
     for i in range(3):
         R = cameras[imgs_order[i]].R
         t = cameras[imgs_order[i]].t
         plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
-
-    # R = cameras[imgs_order[1]].R
-    # R2 = cameras[imgs_order[2]].R
-    # t = cameras[imgs_order[1]].t
-    # t2 = cameras[imgs_order[2]].t
-    #
-    # plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[1]))
-    # plot_csystem(ax, R2.T, R2.T @ -t2.reshape(3, ), 'c{}'.format(imgs_order[2]))
 
     ax.plot3D(X[0], X[1], X[2], 'b.')
     ax.plot3D(0, 0, 0, "r.")
