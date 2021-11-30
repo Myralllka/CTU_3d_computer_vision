@@ -1,10 +1,11 @@
 import numpy as np
 import scipy.linalg as lin_alg
 import random
-import matplotlib.pyplot as plt
 import p5
 import scipy.optimize
 
+
+# implementation of toolbox for tdv course + some other functions
 
 def e2p(u_e):
     """
@@ -162,17 +163,10 @@ def Eu2Rt(E, u1, u2):
         if np.any(tmp[:, 2] < 0):
             result_index_R_C_Ps.append([-100, R_loop, t_loop])
             continue
-        # a = np.logical_and((np.divide((np.sum(np.multiply(Xs, u1), axis=0)),
-        #                               (np.multiply((np.linalg.norm(Xs, axis=0)), (np.linalg.norm(u1, axis=0))))) > 0),
-        #                    (np.divide((np.sum(np.multiply(Xs, u2), axis=0)),
-        #                               (np.multiply((np.linalg.norm(Xs, axis=0)), (np.linalg.norm(u2, axis=0))))) > 0))
-
-        # result_index_R_C_Ps.append([np.count_nonzero(a), R_loop, t_loop, Xs])
         result_index_R_C_Ps.append([5, R_loop, t_loop])
     c, R, t = sorted(result_index_R_C_Ps, key=lambda x: x[0])[-1]
     if c != u1.shape[1]:
         return None, None
-    # t /= (t[0] ** 2 + t[1] ** 2) / 2
     return [R, t]
 
 
@@ -190,19 +184,9 @@ def Pu2X(P1, P2, u1, u2):
     for i in range(len(u1[0])):
         c_u = u1[:, i]
         c_v = u2[:, i]
-        # D = np.c_[c_u[0] * P1[2] - P1[0],
-        #           c_u[1] * P1[2] - P1[1],
-        #           c_v[0] * P2[2] - P2[0],
-        #           c_v[1] * P2[2] - P2[1]]
-
         M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
         _, _, Vh = np.linalg.svd(M)
         res_X.append(Vh[-1, 2:] / Vh[-1, -1])
-
-        # _, _, Vh = np.linalg.svd(D)
-        # x = Vh.T[:, -1]
-        # x /= x[-1]
-        # res_X.append(x)
     return np.array(res_X).T
 
 
@@ -283,53 +267,17 @@ def u_correct_sampson(F, u1, u2):
     return e2p(res[:2]), e2p(res[2:])
 
 
-def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
-    colors = ["dimgray", "rosybrown", "maroon", "peru",
-              "moccasin", "yellow", "olivedrab", "lightgreen",
-              "navy", "royalblue", "indigo", "hotpink"]
-
-    idxs = random.sample(range(c_u1.shape[1]), len(colors))
-    c_u1 = c_u1[:, idxs]
-    c_u2 = c_u2[:, idxs]
-    fig = plt.figure()
-    fig.clf()
-    fig.suptitle(header)
-    plt.subplot(121)
-    i = 0
-    for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
-        plt.plot([int(x_p1)], [int(y_p1)], color=colors[i], marker="X",
-                 markersize=10)
-        point2_step2 = np.c_[x_p2, y_p2, 1].reshape(3, 1)
-
-        x = np.linspace(1, img1.shape[1], img1.shape[1])
-        ep1_step2 = c_F.T @ point2_step2
-        y = -((ep1_step2[2] / ep1_step2[1]) + x * ep1_step2[0] / ep1_step2[1])
-        plt.plot(x, y, color=colors[i])
-
-        i += 1
-    plt.imshow(img1)
-
-    plt.subplot(122)
-    i = 0
-    for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
-        plt.plot([int(x_p2)], [int(y_p2)],
-                 color=colors[i],
-                 marker="X",
-                 markersize=10)
-        point1_step2 = np.c_[x_p1, y_p1, 1].reshape(3, 1)
-
-        x = np.linspace(1, img1.shape[1], img1.shape[1])
-        point1_step2 = point1_step2.reshape(3, 1)
-        ep2_step2 = c_F @ point1_step2
-        y = -((ep2_step2[2] / ep2_step2[1]) + x * ep2_step2[0] / ep2_step2[1])
-        plt.plot(x, y, color=colors[i])
-        i += 1
-
-    plt.imshow(img2)
-    plt.show()
-
-
-def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, iterations=1000):
+def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_matrix_estimator, iterations=1000):
+    """
+    Find E, R, t and respective inliers given points correspondences with RANSAC method.
+    @param c_u1p_K, c_u2p_K: 3xn matrices of 2d points from images in homogenous coordinate system, with K applied
+    @param correspondences: 2xn list of correspondent indexes for c_u1p_K, c_u2p_K
+    @param K: Camera calibration matrix
+    @param theta: threshold for ransac to accept inliers, in pxs
+    @param essential_matrix_estimator: function that estimate set of essential matrices given 5 correspondences
+    @param iterations: number of iterations for ransac
+    @return: E, R, t, inliers
+    """
     best_score = 0
     best_R, best_t, best_E = [], [], []
     inliers_E_idxs = []
@@ -346,7 +294,7 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, i
         corresp_idxs = correspondences[:, corresp_idxs]
         loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]
         loop_u2p = c_u2p_K_undone[:, corresp_idxs[1]]
-        Es = optimiser(loop_u1p, loop_u2p)
+        Es = essential_matrix_estimator(loop_u1p, loop_u2p)
         for E in Es:
             F = K_inv.T @ E @ K_inv
             e = err_F_sampson(F, c_u1p_K[:, correspondences[0]], c_u2p_K[:, correspondences[1]])
@@ -364,10 +312,10 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, optimiser, i
     return best_E, best_R, best_t, inliers_E_idxs[0]
 
 
-def minimisation_function(vector, m_u1p, m_u2p, corres, m_K):
+def Rt_minimisation_function(vector, m_u1p, m_u2p, corres, m_K):
     """
-    function to minimise
-
+    function to minimise R and t
+    from correspondent points and calibration matrix
     @param vector: [0:3] rotation
     @param vector: [3:] translation
     """
@@ -383,12 +331,15 @@ def minimisation_function(vector, m_u1p, m_u2p, corres, m_K):
 
 
 def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=1000):
+    """
+    ransac_ERt_inliers wrapper, that also make an optimisation of R and t
+    """
     E, R, t, inliers_corresp_idxs = ransac_ERt_inliers(u1p_K, u2p_K, corresp, K, THETA, solver, iterations)
     inliers_idxs = corresp[:, inliers_corresp_idxs]
 
     input_rotation_t = np.concatenate((R2mrp(R), t))
 
-    res = scipy.optimize.fmin(minimisation_function,
+    res = scipy.optimize.fmin(Rt_minimisation_function,
                               input_rotation_t,
                               (u1p_K, u2p_K, inliers_idxs, K),
                               xtol=10e-10)
@@ -399,39 +350,3 @@ def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=
 
     n_E = sqc(-n_t) @ n_R
     return n_E, n_R, n_t, inliers_idxs, inliers_corresp_idxs
-
-
-def plot_csystem(ax, base, origin, name, color=None):
-    """
-    drawing a coordinate system with base Base located in the origin b with a
-    given name and color. The base and origin are expressed in the world
-    coordinate system δ. The base consists of a two or three three-dimensional
-    column vectors of coordinates. E.g.
-    hw03.plot_csystem(ax,np.eye(3),np.zeros([3,1]),'k','d')
-    δ_x, δ_y, δ_z
-    :param base: 3x2 or 3x3 mat
-    :param origin: 1x3 vec
-    """
-
-    if color is None:
-        colors = ["red", "green", "blue"]
-    else:
-        colors = [color] * 3
-    ax.quiver3D(origin[0], origin[1], origin[2],
-                base[0, 0], base[1, 0], base[2, 0],
-                length=1,
-                arrow_length_ratio=0.1,
-                color=colors[0])
-    ax.quiver3D(origin[0], origin[1], origin[2],
-                base[0, 1], base[1, 1], base[2, 1],
-                length=1,
-                arrow_length_ratio=0.1,
-                color=colors[1])
-    ax.quiver3D(origin[0], origin[1], origin[2],
-                base[0, 2], base[1, 2], base[2, 2],
-                length=1,
-                arrow_length_ratio=0.1,
-                color=colors[2])
-    ax.text(base[0, 0], base[1, 0], base[2, 0], name + "_x")
-    ax.text(base[0, 1], base[1, 1], base[2, 1], name + "_y")
-    ax.text(base[0, 2], base[1, 2], base[2, 2], name + "_z")

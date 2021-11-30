@@ -1,5 +1,3 @@
-import numpy as np
-
 import toolbox
 from toolbox import *
 
@@ -27,6 +25,7 @@ if __name__ == "__main__":
     imgs_done = set()
     Xs = []
     imgs_points_arr = []
+    
 
     # init K
     K = np.loadtxt('task_general/K.txt')
@@ -49,9 +48,10 @@ if __name__ == "__main__":
             points_relations = np.loadtxt('task_general/data/m_{:02}_{:02}.txt'.format(view_1 + 1,
                                                                                        view_2 + 1), dtype=int)
             c.add_pair(view_1, view_2, points_relations)
+            print()
 
-    a1 = 5
-    a2 = 6
+    a1 = 6
+    a2 = 10
     imgs_todo.remove(a1)
     imgs_todo.remove(a2)
 
