@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import random
 import numpy as np
+from toolbox import p2e, e2p
 
 
 def plot_csystem(ax, base, origin, name, color=None):
@@ -39,7 +40,7 @@ def plot_csystem(ax, base, origin, name, color=None):
     ax.text(base[0, 2] + origin[0], base[1, 2] + origin[1], base[2, 2] + origin[2], name + "_z")
 
 
-def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
+def plot_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
     """
     Draw epipolar lines for pair of images. The number of lines = size of 'colors' array of this function
     @param c_u1, c_u2: 2d points in homogenous coordinate system, 3xn matrices
@@ -89,6 +90,36 @@ def draw_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
         i += 1
 
     plt.imshow(img2)
+    plt.show()
+
+
+def plot_reprojected_points(img, m_u, m_X, correspX2u, m_P):
+    """
+
+    @param img:
+    @param m_u: 2xn
+    @param m_X: 3xn
+    @param correspX2u:
+    @param m_P:
+    @return:
+    """
+    fig = plt.figure()  # figure handle to be used later
+    fig.clf()
+    plt.title('original and reprojected points')
+    plt.imshow(img)
+    plt.xlabel('x [px]')
+    plt.ylabel('y [px]')
+    plt.plot(m_u[0, correspX2u[1]], m_u[1, correspX2u[1]], 'b.', label="Orig. pts")
+
+    projected = p2e(m_P @ e2p(m_X))
+
+    plt.plot(projected[0, correspX2u[0]], projected[1, correspX2u[0]], 'ro',
+             fillstyle='none',
+             label="Reprojected")
+    plt.plot([projected[0, correspX2u[0]], m_u[0, correspX2u[1]]],
+             [projected[1, correspX2u[0]], m_u[1, correspX2u[1]]],
+             'k-', linewidth=.2)
+    plt.legend(loc='best')
     plt.show()
 
 

@@ -191,7 +191,44 @@ def Pu2X(P1, P2, u1, u2):
     return np.array(res_X).T
 
 
-def Pu2X_optimised(P1, P2, u1, u2, F, corresp):
+def Pu2X_corrected_inliers(P1, P2, u1, u2, F, corresp):
+    res_X = []
+    theta = 1
+    u1_basic, u2_basic = u1[:, corresp[0]], u2[:, corresp[1]]
+
+    for i in range(len(u1_basic[0])):
+        c_u = u1_basic[:, i]
+        c_v = u2_basic[:, i]
+        M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
+        _, _, Vh = np.linalg.svd(M)
+        X = Vh[-1, 2:] / Vh[-1, -1]
+        X_trial_1 = P1 @ X
+        X_trial_2 = P2 @ X
+        if X_trial_1[-1] < 0 or X_trial_2[-1] < 0:
+            X = np.array([np.inf, np.inf, np.inf, np.inf])
+        res_X.append(X)
+
+    res_X = np.array(res_X).T
+    e = err_reprojection(P1, P2, u1_basic, u2_basic, res_X)
+    e = e < theta
+    corresp_inliers = corresp[:, e]
+
+    u1_corrected, u2_corrected = u_correct_sampson(F, u1[:, corresp_inliers[0]], u2[:, corresp_inliers[1]])
+
+    res_X = []
+    for i in range(len(u1_corrected[0])):
+        c_u = u1_corrected[:, i]
+        c_v = u2_corrected[:, i]
+        M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
+        _, _, Vh = np.linalg.svd(M)
+        X = Vh[-1, 2:] / Vh[-1, -1]
+
+        res_X.append(X)
+
+    return np.array(res_X).T, corresp[:, np.nonzero(e)[0]], np.nonzero(e)[0]
+
+
+def Pu2X_corrected(P1, P2, u1, u2, F, corresp):
     """
     Pu2X wrapper, that use F for sampson points correction before the reconstruction
 
@@ -227,10 +264,9 @@ def err_F_sampson(F, u1, u2):
     S = np.array([[1, 0, 0],
                   [0, 1, 0]])
 
-    denom = np.sqrt(np.linalg.norm(S @ F @ u1, axis=0) ** 2 +
-                    np.linalg.norm(S @ F.T @ u2, axis=0) ** 2)
+    denom = np.linalg.norm(S @ F @ u1, axis=0) ** 2 + np.linalg.norm(S @ F.T @ u2, axis=0) ** 2
 
-    return alg_epipolar_error / denom
+    return (alg_epipolar_error ** 2) / denom
 
 
 def err_epipolar(F, u1, u2):
@@ -257,26 +293,26 @@ def err_reprojection(P1, P2, u1, u2, X):
     e1 /= e1[-1]
     e2 = P2 @ X
     e2 /= e2[-1]
-    e1 = np.sum(e1 - u1, axis=0)
-    e2 = np.sum(e2 - u2, axis=0)
-    e1 **= 2
-    e2 **= 2
-    return e1 + e2
+    e1 = np.sum((e1 - u1) ** 2, axis=0)
+    e2 = np.sum((e2 - u2) ** 2, axis=0)
+    return np.sqrt(e1 + e2)
 
 
 def err_reprojection_half(P, X, u):
     """
-    compute projection error given P, u, X
+    compute projection error given P, X, u
 
-    @param P: 3*4 np matrix
-    @param u: 3*n np matrix
-    @param X: 4*n matrix
+    :param P: 3*4 np matrix
+    :param X: 4*n matrix
+    :param u: 3*n np matrix
 
-    @return: 1*n np matrix
+    :return: 1*n np matrix
     """
     e = P @ X
     e /= e[-1]
-    return np.abs(np.sum(e - u, axis=0))
+    e = (e - u) ** 2
+    e = np.sum(e, axis=0)
+    return np.sqrt(e)
 
 
 def u_correct_sampson(F, u1, u2):
@@ -291,9 +327,7 @@ def u_correct_sampson(F, u1, u2):
     alg_epipolar_error = err_epipolar(F, u1, u2)
     S = np.array([[1, 0, 0],
                   [0, 1, 0]])
-    SF = S @ F
-    denom = np.linalg.norm(SF @ u1, axis=0) ** 2 + np.linalg.norm(SF @ u2, axis=0) ** 2
-
+    denom = np.linalg.norm(S @ F @ u1, axis=0) ** 2 + np.linalg.norm(S @ F.T @ u2, axis=0) ** 2
     fraction = alg_epipolar_error / denom
 
     # [u1 u2 v1 v2]
@@ -310,14 +344,13 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
     s = 3
     P = 0.999
     eps = 0.1
-    theta = 100
+    theta = 1
     ###
 
     best_score = 0
     best_R, best_t = [], []
-    inliers_idxs = []
+    inliers_corresp_idxs = []
     counter = 0
-    c_X = e2p(c_X)
     N = np.log(1 - P) / np.log(1 - eps ** s)
     for i in range(300):
         # while counter <= N:
@@ -327,7 +360,9 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
         loop_up = c_up_K[:, corresp_idxs[1]]
         loop_up_K_undone = np.linalg.inv(c_K) @ loop_up
         loop_up_K_undone /= loop_up_K_undone[-1]
+
         l_X_new_arr = toolbox.p3p.p3p_grunert(loop_X, np.linalg.inv(c_K) @ loop_up)
+
         for l_X_new in l_X_new_arr:
             n_R, n_t = toolbox.p3p.XX2Rt_simple(loop_X, l_X_new)
             l_P = c_K @ np.c_[n_R, n_t]
@@ -338,13 +373,26 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
                 best_score = np.sum(e)
                 best_R = n_R
                 best_t = n_t
-                inliers_idxs = np.nonzero(e)
+                inliers_corresp_idxs = np.nonzero(e)
                 eps += np.count_nonzero(e) / corresp_Xu.shape[1]
                 N = np.log(1 - P) / np.log(1 - eps ** s)
                 print(best_score)
         counter += 1
+    inliers_idxs = corresp_Xu[:, inliers_corresp_idxs[0]]
+    # return best_R, best_t, inliers_idxs, inliers_corresp_idxs[0]
 
-    return best_R, best_t, inliers_idxs[0]
+    input_rotation_t = np.concatenate((R2mrp(best_R), best_t.reshape(3, )))
+
+    res = scipy.optimize.fmin(Rt_minimisation_function_X2im,
+                              input_rotation_t,
+                              (c_X, c_up_K, inliers_idxs, c_K),
+                              xtol=10e-100)
+    n_R = mrp2R(res[0:3])
+    n_t = res[3:]
+    # make scale eq to 1
+    # n_t /= np.sqrt(n_t[0] ** 2 + n_t[1] ** 2 + n_t[2] ** 2)
+
+    return n_R, n_t, inliers_idxs, inliers_corresp_idxs[0]
 
 
 def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_matrix_estimator, iterations=1000):
@@ -363,8 +411,8 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
     # s     -- minimal configuration size (2 for line, 5 for E estimation)
 
     s = 5
-    P = 0.99
-    eps = 0.1
+    P = 0.9999
+    eps = 0.5
 
     ###
 
@@ -379,10 +427,10 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
     c_u2p_K_undone = K_inv @ c_u2p_K
     c_u2p_K_undone /= c_u2p_K_undone[-1]
 
-    counter = 0
+    counter = 1
     N = np.log(1 - P) / np.log(1 - eps ** s)
+    # for i in range(iterations):
     while counter <= N:
-        # for i in range(iterations):
         corresp_idxs = random.sample(range(correspondences.shape[1]), 5)
         corresp_idxs = correspondences[:, corresp_idxs]
         loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]
@@ -401,7 +449,7 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
                 best_t = t_c
                 best_E = E
                 inliers_E_idxs = np.nonzero(e)
-                eps += np.count_nonzero(e) / correspondences.shape[1]
+                eps = np.count_nonzero(e) / correspondences.shape[1]
                 N = np.log(1 - P) / np.log(1 - eps ** s)
                 print(best_score)
                 print(counter, N)
@@ -410,7 +458,7 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
     return best_E, best_R, best_t, inliers_E_idxs[0]
 
 
-def Rt_minimisation_function(vector, m_u1p, m_u2p, corres, m_K):
+def Rt_minimisation_function_im2im(vector, m_u1p, m_u2p, corres, m_K):
     """
     function to minimise R and t
     from correspondent points and calibration matrix
@@ -428,6 +476,24 @@ def Rt_minimisation_function(vector, m_u1p, m_u2p, corres, m_K):
     return np.sum(e)
 
 
+def Rt_minimisation_function_X2im(vector, m_Xp, m_u2p, corres, m_K):
+    """
+    function to minimise R and t
+    from correspondent points and calibration matrix
+    @param vector: [0:3] rotation
+    @param vector: [3:] translation
+    """
+    l_Xp = m_Xp[:, corres[0]]
+    l_u2p = m_u2p[:, corres[1]]
+
+    R = mrp2R(vector[0:3])
+    P = m_K @ np.c_[R, vector[3:].reshape(3, )]
+
+    e = err_reprojection_half(P, l_Xp, l_u2p)
+
+    return np.sum(e)
+
+
 def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=1000):
     """
     ransac_ERt_inliers wrapper, that also make an optimisation of R and t
@@ -437,7 +503,7 @@ def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=
 
     input_rotation_t = np.concatenate((R2mrp(R), t))
 
-    res = scipy.optimize.fmin(Rt_minimisation_function,
+    res = scipy.optimize.fmin(Rt_minimisation_function_im2im,
                               input_rotation_t,
                               (u1p_K, u2p_K, inliers_idxs, K),
                               xtol=10e-10)

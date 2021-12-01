@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     E, R, t, inliers_idxs, inliers_corresp_idxs = u2ERt_optimal(u1p_K, u2p_K, points_1_2_relations, K)
 
-    draw_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], K_inv.T @ E @ K_inv, img1, img2)
+    plot_epipolar_lines(u1p_K[:, inliers_idxs[0]], u2p_K[:, inliers_idxs[1]], K_inv.T @ E @ K_inv, img1, img2)
 
     ### draw inliers and outliers
     fig = plt.figure(3)
