@@ -123,10 +123,12 @@ def plot_reprojected_points(img, m_u, m_X, correspX2u, m_P):
     plt.show()
 
 
-def show_cameras(m_Cs):
-    """
-
-    @param m_Cs:
-    @return:
-    """
-    pass
+def plot_cameras(ax, Cs, ts, idxs, color="k"):
+    for C, t, i in zip(Cs, ts, idxs):
+        ax.quiver3D(t[0], t[1], t[2],
+                    C[0, 2], C[1, 2], C[2, 2],
+                    # length=1,
+                    arrow_length_ratio=0.1,
+                    color=color)
+        ax.text(C[0, 2] + t[0], C[1, 2] + t[1], C[2, 2] + t[2], str(i) + "_x")
+    ax.plot3D([ts[0][0], ts[1][0]], [ts[0][1], ts[1][1]], [ts[0][2], ts[1][2]], color="r")

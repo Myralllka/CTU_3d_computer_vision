@@ -4,11 +4,11 @@ import toolbox
 from copy import deepcopy
 from toolbox import *
 
-THETA = 1
 NUM_OF_IMGS = 12
 
 
 class Camera:
+    # Camera representation class
     def __init__(self, n: int, img):
         self.n = n
         self.img = img
@@ -52,9 +52,9 @@ if __name__ == "__main__":
     ### So the best choice for the very beginning is the pair 6--7
     ### Data setup
 
-    imgs_order = [7, 11, 3, 6, 10, 2, 5, 9, 1, 4, 8, 0]
-    # imgs_order = [5, 9, 2, 1, 6, 10, 3, 7, 11, 0, 4, 8]
-
+    # imgs_order = [7, 11, 3, 6, 10, 2, 5, 9, 1, 4, 8, 0]
+    # imgs_order = [5, 6, 0, 1, 2, 3, 4, 7, 8, 9, 10, 11]
+    imgs_order = [7, 11]
     cameras = dict()
     Es = []
 
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     c = Corresp(NUM_OF_IMGS)
 
     # for debug info
-    c.verbose = 2
+    c.verbose = 0
 
     # construct images correspondences
     for view_1 in range(NUM_OF_IMGS):
@@ -83,7 +83,8 @@ if __name__ == "__main__":
 
     idx_cam1 = imgs_order[0]
     idx_cam2 = imgs_order[1]
-
+    print("[task3] adding camera {}".format(idx_cam1))
+    print("[task3] adding camera {}".format(idx_cam2))
     u1p_K = cameras[idx_cam1].interest_points_p
     u2p_K = cameras[idx_cam2].interest_points_p
 
@@ -108,7 +109,13 @@ if __name__ == "__main__":
     #  add one more camera
     new_Xs = []
     # add all other cameras
-    for i in imgs_order[2:]:
+    # for i in imgs_order[2:]:
+    for k in range(NUM_OF_IMGS - 2):
+        ig = np.array(sorted(list(np.array([i for i in c.get_green_cameras()]).T), key=lambda x: x[1], reverse=True))
+        # Xucount = c.get_Xucount(3)
+        i = ig[0][0]
+        imgs_order.append(i)
+        print("[task3] adding camera {}".format(i))
         corresp_X2u = np.array(c.get_Xu(i))[:-1]
 
         R2, t2, corresp_X2u_inliers, corresp_X2u_inliers_idxs = ransac_Rt_p3p(e2p(X),
@@ -116,11 +123,6 @@ if __name__ == "__main__":
                                                                               corresp_X2u,
                                                                               K)
         cameras[i].set_P(K, R2, t2)
-        # plot_reprojected_points(cameras[i].img,
-        #                         cameras[i].interest_points_e,
-        #                         X,
-        #                         corresp_X2u[:, corresp_X2u_inliers_idxs],
-        #                         cameras[i].P)
 
         c.join_camera(i, corresp_X2u_inliers_idxs)
 
@@ -144,7 +146,6 @@ if __name__ == "__main__":
             if not new_Xs.size == 0:
                 c.new_x(i, ic, corresp_Xs_inliers_idxs)
                 X = np.append(X, p2e(new_Xs), axis=1)
-        # break
         ilist = c.get_selected_cameras()
         for ic in ilist:
             corr_ok = []
@@ -166,25 +167,23 @@ if __name__ == "__main__":
     #  make a 3d plot of point cloud
     fig = plt.figure()
     ax = plt.axes(projection='3d')
-    scale = 3
-    ax.set_xlim(-scale, scale)
-    ax.set_ylim(-scale, scale)
-    ax.set_zlim(-scale, scale)
+    # ax.set_xlim(-scale, scale)
+    # ax.set_ylim(-scale, scale)
+    # ax.set_zlim(-scale, scale)
 
     origin = np.eye(3)
     d = np.array([0, 0, 0])
-    plot_csystem(ax, origin, d, '0', "black")
-
+    # plot_csystem(ax, origin, d, '0', "black")
+    array_C, array_t = [], []
     # plot cameras
     for i in range(NUM_OF_IMGS):
         R = cameras[imgs_order[i]].R
         t = cameras[imgs_order[i]].t
-        try:
-            plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
-        except:
-            continue
-
-    ax.plot3D(X[0], X[1], X[2], 'b.')
+        array_C.append(R)
+        array_t.append(t)
+    plot_cameras(ax, array_C, array_t, imgs_order)
+    # plot points
+    # ax.plot3D(X[0], X[1], X[2], 'b.')
     # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
     ax.plot3D(0, 0, 0, "r.")
     plt.show()

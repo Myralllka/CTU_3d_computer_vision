@@ -3,9 +3,11 @@ import scipy.linalg as lin_alg
 import random
 import p5
 import scipy.optimize
-
 # implementation of toolbox for tdv course + some other functions
 import toolbox.p3p
+
+THETA = 1
+THETA2 = 1
 
 
 def e2p(u_e):
@@ -193,7 +195,7 @@ def Pu2X(P1, P2, u1, u2):
 
 def Pu2X_corrected_inliers(P1, P2, u1, u2, F, corresp):
     res_X = []
-    theta = 1
+    theta = THETA2
     u1_basic, u2_basic = u1[:, corresp[0]], u2[:, corresp[1]]
 
     for i in range(len(u1_basic[0])):
@@ -260,13 +262,13 @@ def err_F_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: e - Squared Sampson error for each correspondence (1×n).
     """
-    alg_epipolar_error = err_epipolar(F, u1, u2)
+    # alg_epipolar_error = err_epipolar(F, u1, u2)
+
     S = np.array([[1, 0, 0],
                   [0, 1, 0]])
-
-    denom = np.linalg.norm(S @ F @ u1, axis=0) ** 2 + np.linalg.norm(S @ F.T @ u2, axis=0) ** 2
-
-    return (alg_epipolar_error ** 2) / denom
+    Fu1 = F @ u1
+    denom = np.linalg.norm(S @ Fu1, axis=0) ** 2 + np.linalg.norm(S @ F.T @ u2, axis=0) ** 2
+    return (np.sum(Fu1 * u2, axis=0) ** 2) / denom
 
 
 def err_epipolar(F, u1, u2):
@@ -276,7 +278,7 @@ def err_epipolar(F, u1, u2):
     @param u1, u2: 3*n np matrix
     @return: 1*n no matrix
     """
-    return np.abs(np.sum((F @ u1) * u2, axis=0))
+    return np.sum((F @ u1) * u2, axis=0)
 
 
 def err_reprojection(P1, P2, u1, u2, X):
@@ -332,8 +334,8 @@ def u_correct_sampson(F, u1, u2):
 
     # [u1 u2 v1 v2]
     original = np.vstack((p2e(u1), p2e(u2)))
-    F1 = F.T[0]
-    F2 = F.T[1]
+    F1 = F[0]
+    F2 = F[1]
     right = np.vstack((F1 @ u2, F2 @ u2, F1 @ u1, F2 @ u1))
     right2 = fraction * right
     res = original - right2
@@ -344,7 +346,7 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
     s = 3
     P = 0.999
     eps = 0.1
-    theta = 1
+    theta = THETA2
     ###
 
     best_score = 0
@@ -352,8 +354,8 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
     inliers_corresp_idxs = []
     counter = 0
     N = np.log(1 - P) / np.log(1 - eps ** s)
-    for i in range(300):
-        # while counter <= N:
+    # for i in range(300):
+    while counter <= N:
         corresp_idxs = random.sample(range(corresp_Xu.shape[1]), s)
         corresp_idxs = corresp_Xu[:, corresp_idxs]
         loop_X = c_X[:, corresp_idxs[0]]
@@ -376,7 +378,7 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
                 inliers_corresp_idxs = np.nonzero(e)
                 eps += np.count_nonzero(e) / corresp_Xu.shape[1]
                 N = np.log(1 - P) / np.log(1 - eps ** s)
-                print(best_score)
+                # print(best_score)
         counter += 1
     inliers_idxs = corresp_Xu[:, inliers_corresp_idxs[0]]
     # return best_R, best_t, inliers_idxs, inliers_corresp_idxs[0]
@@ -451,8 +453,8 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
                 inliers_E_idxs = np.nonzero(e)
                 eps = np.count_nonzero(e) / correspondences.shape[1]
                 N = np.log(1 - P) / np.log(1 - eps ** s)
-                print(best_score)
-                print(counter, N)
+                # print(best_score)
+                # print(counter, N)
             counter += 1
 
     return best_E, best_R, best_t, inliers_E_idxs[0]
