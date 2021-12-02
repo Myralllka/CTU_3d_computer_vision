@@ -6,8 +6,8 @@ import scipy.optimize
 # implementation of toolbox for tdv course + some other functions
 import toolbox.p3p
 
-THETA = 1
-THETA2 = 1
+THETA = 0.5
+THETA2 = 0.3
 
 
 def e2p(u_e):
@@ -354,8 +354,8 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
     inliers_corresp_idxs = []
     counter = 0
     N = np.log(1 - P) / np.log(1 - eps ** s)
-    # for i in range(300):
-    while counter <= N:
+    for i in range(400):
+    # while counter <= N:
         corresp_idxs = random.sample(range(corresp_Xu.shape[1]), s)
         corresp_idxs = corresp_Xu[:, corresp_idxs]
         loop_X = c_X[:, corresp_idxs[0]]
@@ -431,8 +431,8 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
 
     counter = 1
     N = np.log(1 - P) / np.log(1 - eps ** s)
-    # for i in range(iterations):
-    while counter <= N:
+    for i in range(iterations):
+    # while counter <= N:
         corresp_idxs = random.sample(range(correspondences.shape[1]), 5)
         corresp_idxs = correspondences[:, corresp_idxs]
         loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]

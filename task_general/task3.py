@@ -167,9 +167,10 @@ if __name__ == "__main__":
     #  make a 3d plot of point cloud
     fig = plt.figure()
     ax = plt.axes(projection='3d')
-    # ax.set_xlim(-scale, scale)
-    # ax.set_ylim(-scale, scale)
-    # ax.set_zlim(-scale, scale)
+    scale = 6
+    ax.set_xlim(-scale, scale)
+    ax.set_ylim(-scale, scale)
+    ax.set_zlim(-scale, scale)
 
     origin = np.eye(3)
     d = np.array([0, 0, 0])
@@ -179,11 +180,12 @@ if __name__ == "__main__":
     for i in range(NUM_OF_IMGS):
         R = cameras[imgs_order[i]].R
         t = cameras[imgs_order[i]].t
-        array_C.append(R)
-        array_t.append(t)
+        # plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
+        array_C.append(R.T)
+        array_t.append(R.T @ -t)
     plot_cameras(ax, array_C, array_t, imgs_order)
     # plot points
-    # ax.plot3D(X[0], X[1], X[2], 'b.')
+    ax.plot3D(X[0], X[1], X[2], 'b.')
     # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
     ax.plot3D(0, 0, 0, "r.")
     plt.show()
@@ -192,5 +194,9 @@ if __name__ == "__main__":
 
     g = ge.GePly('out.ply')
     g.points(X)  # Xall contains euclidean points (3xn matrix), ColorAll RGB colors (3xn or 3x1, optional)
-    g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
+    for i in range(NUM_OF_IMGS):
+        # g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
+        R = cameras[imgs_order[i]].R
+        t = cameras[imgs_order[i]].t
+        g.points((R.T @ -t).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
     g.close()
