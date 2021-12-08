@@ -180,12 +180,12 @@ if __name__ == "__main__":
     for i in range(NUM_OF_IMGS):
         R = cameras[imgs_order[i]].R
         t = cameras[imgs_order[i]].t
-        # plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
+        plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
         array_C.append(R.T)
         array_t.append(R.T @ -t)
-    plot_cameras(ax, array_C, array_t, imgs_order)
+    # plot_cameras(ax, array_C, array_t, imgs_order)
     # plot points
-    ax.plot3D(X[0], X[1], X[2], 'b.')
+    # ax.plot3D(X[0], X[1], X[2], 'b,', )
     # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
     ax.plot3D(0, 0, 0, "r.")
     plt.show()
