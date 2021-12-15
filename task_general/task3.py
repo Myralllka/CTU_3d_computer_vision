@@ -164,6 +164,11 @@ if __name__ == "__main__":
 
         c.finalize_camera()
 
+    # clean up X points
+
+    idx = X.T[:, -1].argsort()[::-1]
+    num_of_outliers = int(X.shape[1] * 2.5 / 100)
+    X = X.T[idx].T[:, num_of_outliers:-num_of_outliers]
     #  make a 3d plot of point cloud
     fig = plt.figure()
     ax = plt.axes(projection='3d')
@@ -185,7 +190,7 @@ if __name__ == "__main__":
         array_t.append(R.T @ -t)
     # plot_cameras(ax, array_C, array_t, imgs_order)
     # plot points
-    # ax.plot3D(X[0], X[1], X[2], 'b,', )
+    ax.plot3D(X[0], X[1], X[2], 'b,', )
     # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
     ax.plot3D(0, 0, 0, "r.")
     plt.show()
