@@ -1,5 +1,8 @@
 # Byte-compiled / optimized / DLL files
 .idea
+tdv.zip
+.*.ply
+p5_impl/
 *__pycache__/
 *.py[cod]
 *$py.class
