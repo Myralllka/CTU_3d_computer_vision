@@ -10,6 +10,34 @@ THETA = 1
 THETA2 = 2
 
 
+class Camera:
+    # Camera representation class
+    def __init__(self, n: int, img):
+        self.n = n
+        self.img = img
+        self.interest_points_e = None
+        self.interest_points_p = None
+        self.has_P = False
+        self.P = None
+        self.K = None
+        self.R = None
+        self.t = None
+
+    def __hash__(self):
+        return hash(self.img)
+
+    def set_P(self, K, R, t):
+        assert t is not None, "can not make P, t is None"
+        assert K is not None, "can not make P, K is None"
+        assert R is not None, "can not make P, R is None"
+
+        self.t = t.reshape(3, )
+        self.R = R
+        self.K = K
+        self.P = self.K @ np.c_[self.R, self.t]
+        self.has_P = True
+
+
 def e2p(u_e):
     """
     Transformation of euclidean to projective coordinates
@@ -222,6 +250,27 @@ def triangulate_gvg(P1, P2, u1, u2):
     return np.array(res_X).T
 
 
+def triangulate_3dv(P1, P2, u1, u2):
+    """
+
+    """
+    res_X = []
+
+    for i in range(u1.shape[1]):
+        c_u = u1[:, i]
+        c_v = u2[:, i]
+        D = np.vstack([c_u[0] * P1[2] - P1[0],
+                       c_u[1] * P1[2] - P1[1],
+                       c_v[0] * P2[2] - P2[0],
+                       c_v[1] * P2[2] - P2[1]])
+
+        _, _, Vt = np.linalg.svd(D)
+        X = Vt.T[:, -1]
+        res_X.append(X)
+
+    return np.array(res_X).T
+
+
 def Pu2X_corrected_inliers(P1, P2, u1, u2, corresp):
     """
 
@@ -229,13 +278,13 @@ def Pu2X_corrected_inliers(P1, P2, u1, u2, corresp):
     F = PP2F(P1, P2)
     theta = THETA2
     u1_basic, u2_basic = u1[:, corresp[0]], u2[:, corresp[1]]
-    res_X = triangulate_gvg(P1, P2, u1_basic, u2_basic)
+    res_X = triangulate_3dv(P1, P2, u1_basic, u2_basic)
     e = err_reprojection(P1, P2, u1_basic, u2_basic, res_X)
     e = e < theta
     corresp_inliers = corresp[:, e]
-    
+
     u1_corrected, u2_corrected = u_correct_sampson(F, u1[:, corresp_inliers[0]], u2[:, corresp_inliers[1]])
-    res_X = triangulate_gvg(P1, P2, u1_corrected, u2_corrected)
+    res_X = triangulate_3dv(P1, P2, u1_corrected, u2_corrected)
     return res_X, corresp[:, np.nonzero(e)[0]], np.nonzero(e)[0]
 
 
@@ -253,7 +302,8 @@ def Pu2X_corrected(P1, P2, u1, u2, corresp):
 
     u1_corrected, u2_corrected = u_correct_sampson(F, u1[:, corresp[0]], u2[:, corresp[1]])
 
-    return triangulate_gvg(P1, P2, u1_corrected, u2_corrected)
+    # return triangulate_3dv(P1, P2, u1_corrected, u2_corrected)
+    return triangulate_3dv(P1, P2, u1_corrected, u2_corrected)
 
 
 def err_F_sampson(F, u1, u2):
@@ -326,7 +376,7 @@ def u_correct_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: nu1, nu2 - corrected corresponding points, homog. (3×n).
     """
-    return u1, u2
+    # return u1, u2
     # alg_epipolar_error = err_epipolar(F, u1, u2)
 
     Fx = F @ u1

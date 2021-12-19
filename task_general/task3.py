@@ -7,34 +7,6 @@ from toolbox import *
 NUM_OF_IMGS = 12
 
 
-class Camera:
-    # Camera representation class
-    def __init__(self, n: int, img):
-        self.n = n
-        self.img = img
-        self.interest_points_e = None
-        self.interest_points_p = None
-        self.has_P = False
-        self.P = None
-        self.K = None
-        self.R = None
-        self.t = None
-
-    def __hash__(self):
-        return hash(self.img)
-
-    def set_P(self, K, R, t):
-        assert t is not None, "can not make P, t is None"
-        assert K is not None, "can not make P, K is None"
-        assert R is not None, "can not make P, R is None"
-
-        self.t = t.reshape(3, )
-        self.R = R
-        self.K = K
-        self.P = self.K @ np.c_[self.R, self.t]
-        self.has_P = True
-
-
 if __name__ == "__main__":
     ### Preparing, loading the data
     ### cameras located like this:
@@ -54,6 +26,14 @@ if __name__ == "__main__":
 
     # imgs_order = [7, 11, 3, 6, 10, 2, 5, 9, 1, 4, 8, 0]
     # imgs_order = [5, 6, 0, 1, 2, 3, 4, 7, 8, 9, 10, 11]
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    scale = 6
+    ax.set_xlim(-scale, scale)
+    ax.set_ylim(-scale, scale)
+    ax.set_zlim(-scale, scale)
+
     imgs_order = [7, 11]
     cameras = dict()
     Es = []
@@ -102,9 +82,9 @@ if __name__ == "__main__":
                            cameras[idx_cam2].P,
                            u1p_K,
                            u2p_K,
-                           F,
                            corresp_u2u_inliers))
     # init 3d points
+    ax.plot3D(X[0], X[1], X[2], 'b,')
     c.start(imgs_order[0], imgs_order[1], corresp_u2u_inliers_idxs)
     #  add one more camera
     new_Xs = []
@@ -141,11 +121,11 @@ if __name__ == "__main__":
                 P2,
                 cameras[i].interest_points_p,
                 cameras[ic].interest_points_p,
-                F,
                 corresp_u2u_idxs)
             if not new_Xs.size == 0:
                 c.new_x(i, ic, corresp_Xs_inliers_idxs)
                 X = np.append(X, p2e(new_Xs), axis=1)
+                ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], ',')
         ilist = c.get_selected_cameras()
         for ic in ilist:
             corr_ok = []
@@ -170,12 +150,6 @@ if __name__ == "__main__":
     num_of_outliers = int(X.shape[1] * 2.5 / 100)
     X = X.T[idx].T[:, num_of_outliers:-num_of_outliers]
     #  make a 3d plot of point cloud
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    scale = 6
-    ax.set_xlim(-scale, scale)
-    ax.set_ylim(-scale, scale)
-    ax.set_zlim(-scale, scale)
 
     origin = np.eye(3)
     d = np.array([0, 0, 0])
@@ -190,7 +164,7 @@ if __name__ == "__main__":
         array_t.append(R.T @ -t)
     # plot_cameras(ax, array_C, array_t, imgs_order)
     # plot points
-    ax.plot3D(X[0], X[1], X[2], 'b,', )
+    # ax.plot3D(X[0], X[1], X[2], 'b,', )
     # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
     ax.plot3D(0, 0, 0, "r.")
     plt.show()
