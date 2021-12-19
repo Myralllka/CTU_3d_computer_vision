@@ -193,19 +193,24 @@ def Pu2X(P1, P2, u1, u2):
     return np.array(res_X).T
 
 
-def Pu2X_corrected_inliers(P1, P2, u1, u2, F, corresp):
+def PP2F(P1, P2):
+    """
+
+    """
     Q1, q1 = P1[:, :-1], P1[:, -1]
     Q2, q2 = P2[:, :-1], P2[:, -1]
     qq = Q1 @ np.linalg.inv(Q2)
-    F = qq.T @ sqc(q1 - qq @ q2)
+    return qq.T @ sqc(q1 - qq @ q2)
 
+
+def triangulate_gvg(P1, P2, u1, u2):
+    """
+
+    """
     res_X = []
-    theta = THETA2
-    u1_basic, u2_basic = u1[:, corresp[0]], u2[:, corresp[1]]
-
-    for i in range(len(u1_basic[0])):
-        c_u = u1_basic[:, i]
-        c_v = u2_basic[:, i]
+    for i in range(len(u1[0])):
+        c_u = u1[:, i]
+        c_v = u2[:, i]
         M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
         _, _, Vh = np.linalg.svd(M)
         X = Vh[-1, 2:] / Vh[-1, -1]
@@ -214,48 +219,41 @@ def Pu2X_corrected_inliers(P1, P2, u1, u2, F, corresp):
         if X_trial_1[-1] < 0 or X_trial_2[-1] < 0:
             X = np.array([np.inf, np.inf, np.inf, np.inf])
         res_X.append(X)
+    return np.array(res_X).T
 
-    res_X = np.array(res_X).T
+
+def Pu2X_corrected_inliers(P1, P2, u1, u2, corresp):
+    """
+
+    """
+    F = PP2F(P1, P2)
+    theta = THETA2
+    u1_basic, u2_basic = u1[:, corresp[0]], u2[:, corresp[1]]
+    res_X = triangulate_gvg(P1, P2, u1_basic, u2_basic)
     e = err_reprojection(P1, P2, u1_basic, u2_basic, res_X)
     e = e < theta
     corresp_inliers = corresp[:, e]
-
+    
     u1_corrected, u2_corrected = u_correct_sampson(F, u1[:, corresp_inliers[0]], u2[:, corresp_inliers[1]])
-
-    res_X = []
-    for i in range(len(u1_corrected[0])):
-        c_u = u1_corrected[:, i]
-        c_v = u2_corrected[:, i]
-        M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
-        _, _, Vh = np.linalg.svd(M)
-        X = Vh[-1, 2:] / Vh[-1, -1]
-
-        res_X.append(X)
-
-    return np.array(res_X).T, corresp[:, np.nonzero(e)[0]], np.nonzero(e)[0]
+    res_X = triangulate_gvg(P1, P2, u1_corrected, u2_corrected)
+    return res_X, corresp[:, np.nonzero(e)[0]], np.nonzero(e)[0]
 
 
-def Pu2X_corrected(P1, P2, u1, u2, F, corresp):
+def Pu2X_corrected(P1, P2, u1, u2, corresp):
     """
     Pu2X wrapper, that use F for sampson points correction before the reconstruction
 
     Synopsis: X = Pu2X( P1, P2, u1, u2, F, corresp)
     @param P1, P2: projective camera matrices (3×4)
     @param u1, u2: corresponding image points in homogeneous coordinates (3×n)
-    @param F: fundamental matrix
     @param corresp: image correspondences for u1 u2
     @return: X - reconstructed 3D points, homogeneous (4×n)
     """
-    res_X = []
+    F = PP2F(P1, P2)
+
     u1_corrected, u2_corrected = u_correct_sampson(F, u1[:, corresp[0]], u2[:, corresp[1]])
 
-    for i in range(len(u1_corrected[0])):
-        c_u = u1_corrected[:, i]
-        c_v = u2_corrected[:, i]
-        M = np.vstack([np.c_[c_u, np.zeros((3, 1)), -P1], np.c_[np.zeros((3, 1)), c_v, -P2]])
-        _, _, Vh = np.linalg.svd(M)
-        res_X.append(Vh[-1, 2:] / Vh[-1, -1])
-    return np.array(res_X).T
+    return triangulate_gvg(P1, P2, u1_corrected, u2_corrected)
 
 
 def err_F_sampson(F, u1, u2):
@@ -296,13 +294,10 @@ def err_reprojection(P1, P2, u1, u2, X):
 
     @return: 1*n np matrix
     """
-    e1 = P1 @ X
-    e1 /= e1[-1]
-    e2 = P2 @ X
-    e2 /= e2[-1]
-    e1 = np.sum((e1 - u1) ** 2, axis=0)
-    e2 = np.sum((e2 - u2) ** 2, axis=0)
-    return np.sqrt(e1 + e2)
+    e1 = err_reprojection_half(P1, X, u1)
+    e2 = err_reprojection_half(P2, X, u2)
+
+    return e1 + e2
 
 
 def err_reprojection_half(P, X, u):
@@ -331,10 +326,15 @@ def u_correct_sampson(F, u1, u2):
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
     :return: nu1, nu2 - corrected corresponding points, homog. (3×n).
     """
-    alg_epipolar_error = err_epipolar(F, u1, u2)
+    return u1, u2
+    # alg_epipolar_error = err_epipolar(F, u1, u2)
+
+    Fx = F @ u1
+    alg_epipolar_error = np.sum(Fx * u2, axis=0)
+
     S = np.array([[1, 0, 0],
                   [0, 1, 0]])
-    denom = np.linalg.norm(S @ F @ u1, axis=0) ** 2 + np.linalg.norm(S @ F.T @ u2, axis=0) ** 2
+    denom = np.linalg.norm(S @ Fx, axis=0) ** 2 + np.linalg.norm(S @ F.T @ u2, axis=0) ** 2
     fraction = alg_epipolar_error / denom
 
     # [u1 u2 v1 v2]
@@ -359,8 +359,8 @@ def ransac_Rt_p3p(c_X, c_up_K, corresp_Xu, c_K):
     inliers_corresp_idxs = []
     counter = 0
     N = np.inf
-    # for i in range(400):
-    while counter <= N:
+    for i in range(400):
+        # while counter <= N:
         corresp_idxs = random.sample(range(corresp_Xu.shape[1]), s)
         corresp_idxs = corresp_Xu[:, corresp_idxs]
         loop_X = c_X[:, corresp_idxs[0]]
@@ -436,8 +436,8 @@ def ransac_ERt_inliers(c_u1p_K, c_u2p_K, correspondences, K, theta, essential_ma
 
     counter = 1
     N = np.log(1 - P) / np.log(1 - eps ** s)
-    # for i in range(iterations):
-    while counter <= N:
+    for i in range(iterations):
+        # while counter <= N:
         corresp_idxs = random.sample(range(correspondences.shape[1]), 5)
         corresp_idxs = correspondences[:, corresp_idxs]
         loop_u1p = c_u1p_K_undone[:, corresp_idxs[0]]
