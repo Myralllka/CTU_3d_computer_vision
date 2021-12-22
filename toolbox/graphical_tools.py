@@ -40,7 +40,7 @@ def plot_csystem(ax, base, origin, name, color=None):
     ax.text(base[0, 2] + origin[0], base[1, 2] + origin[1], base[2, 2] + origin[2], name + "_z")
 
 
-def plot_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F'):
+def plot_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines using F', H1=None, H2=None):
     """
     Draw epipolar lines for pair of images. The number of lines = size of 'colors' array of this function
     @param c_u1, c_u2: 2d points in homogenous coordinate system, 3xn matrices
@@ -53,6 +53,7 @@ def plot_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
               "navy", "royalblue", "indigo", "hotpink"]
 
     idxs = random.sample(range(c_u1.shape[1]), len(colors))
+    # idxs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     c_u1 = c_u1[:, idxs]
     c_u2 = c_u2[:, idxs]
     fig = plt.figure()
@@ -61,8 +62,7 @@ def plot_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
     plt.subplot(121)
     i = 0
     for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
-        plt.plot([int(x_p1)], [int(y_p1)], color=colors[i], marker="X",
-                 markersize=10)
+        plt.plot([int(x_p1)], [int(y_p1)], color=colors[i], marker="X", markersize=10)
         point2_step2 = np.c_[x_p2, y_p2, 1].reshape(3, 1)
 
         x = np.linspace(1, img1.shape[1], img1.shape[1])
@@ -76,10 +76,7 @@ def plot_epipolar_lines(c_u1, c_u2, c_F, img1, img2, header='The epipolar lines 
     plt.subplot(122)
     i = 0
     for x_p1, y_p1, x_p2, y_p2 in zip(c_u1[0], c_u1[1], c_u2[0], c_u2[1]):
-        plt.plot([int(x_p2)], [int(y_p2)],
-                 color=colors[i],
-                 marker="X",
-                 markersize=10)
+        plt.plot([int(x_p2)], [int(y_p2)], color=colors[i], marker="X", markersize=10)
         point1_step2 = np.c_[x_p1, y_p1, 1].reshape(3, 1)
 
         x = np.linspace(1, img1.shape[1], img1.shape[1])
