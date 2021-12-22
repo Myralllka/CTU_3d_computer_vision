@@ -1,7 +1,4 @@
-import numpy as np
-
 import toolbox
-from copy import deepcopy
 from toolbox import *
 
 NUM_OF_IMGS = 12
