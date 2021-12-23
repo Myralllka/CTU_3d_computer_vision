@@ -1,8 +1,6 @@
-import random
-
 import toolbox
 from toolbox import *
-import cv2 as cv
+import scipy.io
 
 NUM_OF_IMGS = 12
 
@@ -62,8 +60,8 @@ if __name__ == "__main__":
 
     idx_cam1 = imgs_order[0]
     idx_cam2 = imgs_order[1]
-    print("[task3] adding camera {}".format(idx_cam1))
-    print("[task3] adding camera {}".format(idx_cam2))
+    print("[task4] adding camera {}".format(idx_cam1))
+    print("[task4] adding camera {}".format(idx_cam2))
     u1p_K = cameras[idx_cam1].interest_points_p
     u2p_K = cameras[idx_cam2].interest_points_p
 
@@ -94,7 +92,7 @@ if __name__ == "__main__":
         # Xucount = c.get_Xucount(3)
         i = ig[0][0]
         imgs_order.append(i)
-        print("[task3] adding camera {}".format(i))
+        print("[task4] adding camera {}".format(i))
         corresp_X2u = np.array(c.get_Xu(i))[:-1]
 
         R2, t2, corresp_X2u_inliers, corresp_X2u_inliers_idxs = ransac_Rt_p3p(e2p(X),
@@ -139,10 +137,11 @@ if __name__ == "__main__":
                     if e < THETA:
                         corr_ok.append(loop_index)
             c.verify_x(ic, corr_ok)
-
         c.finalize_camera()
 
     # TASK 4 REALLY BEGUN HERE
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    task = []
 
     for pair in pairs:
         c1 = cameras[pair[0]]
@@ -151,46 +150,63 @@ if __name__ == "__main__":
 
         Ha, Hb, imga_r, imgb_r = rectify(l_F, c1.img, c2.img)
 
-        stereo = cv.StereoBM_create(numDisparities=16, blockSize=15)
+        mX1, mu1, _ = c.get_Xu(pair[0])
+        mX2, mu2, _ = c.get_Xu(pair[1])
+
+        restored_idxs = restore_idxs(mX1, mX2, mu1, mu2).T
+        points_H_c1 = Ha @ c1.interest_points_p[:, restored_idxs[0]]
+        points_H_c2 = Hb @ c2.interest_points_p[:, restored_idxs[1]]
+        points_H_c1 /= points_H_c1[-1]
+        points_H_c2 /= points_H_c2[-1]
+
         print(imga_r.shape, imgb_r.shape)
-        disparity = stereo.compute(imga_r, imgb_r)
-        plt.imshow(imgb_r)
-        plt.show()
-        plt.imshow(disparity, 'gray')
-        plt.show()
+        u_a_r = points_H_c1
+        u_b_r = points_H_c2
 
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    scale = 6
-    ax.set_xlim(-scale, scale)
-    ax.set_ylim(-scale, scale)
-    ax.set_zlim(-scale, scale)
+        seeds = np.vstack((u_a_r[0, :], u_b_r[0], (u_a_r[1] + u_b_r[1]) / 2)).T
+        task_i = np.array([imga_r, imgb_r, seeds], dtype=object)
+        task += [task_i]
 
-    origin = np.eye(3)
-    d = np.array([0, 0, 0])
-    # plot_csystem(ax, origin, d, '0', "black")
-    array_C, array_t = [], []
-    # plot cameras
-    for i in range(NUM_OF_IMGS):
-        R = cameras[imgs_order[i]].R
-        t = cameras[imgs_order[i]].t
-        plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
-        array_C.append(R.T)
-        array_t.append(R.T @ -t)
-    # plot_cameras(ax, array_C, array_t, imgs_order)
-    # plot points
-    # ax.plot3D(X[0], X[1], X[2], 'b,', )
-    # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
-    ax.plot3D(0, 0, 0, "r.")
-    plt.show()
+    task = np.vstack(task)
+    scipy.io.savemat('stereo_in.mat', {'task': task})
 
-    #  make a point cloud
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    g = ge.GePly('out.ply')
-    g.points(X)  # Xall contains euclidean points (3xn matrix), ColorAll RGB colors (3xn or 3x1, optional)
-    for i in range(NUM_OF_IMGS):
-        # g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
-        R = cameras[imgs_order[i]].R
-        t = cameras[imgs_order[i]].t
-        g.points((R.T @ -t).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
-    g.close()
+    # d = scipy.io.loadmat('stereo_out.mat')
+    # D = d['D']
+
+    # fig = plt.figure()
+    # ax = plt.axes(projection='3d')
+    # scale = 6
+    # ax.set_xlim(-scale, scale)
+    # ax.set_ylim(-scale, scale)
+    # ax.set_zlim(-scale, scale)
+    #
+    # origin = np.eye(3)
+    # d = np.array([0, 0, 0])
+    # # plot_csystem(ax, origin, d, '0', "black")
+    # array_C, array_t = [], []
+    # # plot cameras
+    # for i in range(NUM_OF_IMGS):
+    #     R = cameras[imgs_order[i]].R
+    #     t = cameras[imgs_order[i]].t
+    #     plot_csystem(ax, R.T, R.T @ -t, 'c{}'.format(imgs_order[i]))
+    #     array_C.append(R.T)
+    #     array_t.append(R.T @ -t)
+    # # plot_cameras(ax, array_C, array_t, imgs_order)
+    # # plot points
+    # # ax.plot3D(X[0], X[1], X[2], 'b,', )
+    # # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
+    # ax.plot3D(0, 0, 0, "r.")
+    # plt.show()
+    #
+    # #  make a point cloud
+    #
+    # g = ge.GePly('out.ply')
+    # g.points(X)  # Xall contains euclidean points (3xn matrix), ColorAll RGB colors (3xn or 3x1, optional)
+    # for i in range(NUM_OF_IMGS):
+    #     # g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
+    #     R = cameras[imgs_order[i]].R
+    #     t = cameras[imgs_order[i]].t
+    #     g.points((R.T @ -t).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
+    # g.close()
