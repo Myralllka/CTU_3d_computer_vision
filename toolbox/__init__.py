@@ -14,4 +14,5 @@ import scipy.linalg as slinalg
 import scipy.optimize
 import random
 import p5
+import os
 from copy import deepcopy

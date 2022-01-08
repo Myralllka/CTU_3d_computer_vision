@@ -374,7 +374,7 @@ def u_correct_sampson(F, u1, u2):
     Synopsis: [nu1, nu2] = u_correct_sampson( F, u1, u2 )
     :param F: fundamental matrix (3×3)
     :param u1, u2: corresponding image points in homogeneous coordinates (3×n)
-    :return: nu1, nu2 - corrected corresponding points, homog. (3×n).
+    :return: nu1, nu2 - corrected corresponding points, homog. (2×n).
     """
     # return u1, u2
     # alg_epipolar_error = err_epipolar(F, u1, u2)
@@ -571,3 +571,25 @@ def u2ERt_optimal(u1p_K, u2p_K, corresp, K, THETA=1, solver=p5.p5gb, iterations=
 
     n_E = sqc(-n_t) @ n_R
     return n_E, n_R, n_t, inliers_idxs, inliers_corresp_idxs
+
+
+def restore_idxs(mx1, mx2, mu1, mu2):
+    """
+    given mx1 coordinates of 3d points from the first image, mx2 - second image
+    mu1 - corresponding coordinates of 2d points first image, mu2 - second image
+    restore im2im correspondences
+
+    """
+    i, j = 0, 0
+    res = []
+    while i != mx1.shape[0] and j != mx2.shape[0]:
+        a, b = mx1[i], mx2[j]
+        if a == b:
+            res.append([mu1[i], mu2[j]])
+            i += 1
+            j += 1
+        elif a < b:
+            i += 1
+        else:
+            j += 1
+    return np.array(res)

@@ -31,6 +31,7 @@ if __name__ == "__main__":
     ax.set_ylim(-scale, scale)
     ax.set_zlim(-scale, scale)
 
+
     imgs_order = [7, 11]
     cameras = dict()
     Es = []
