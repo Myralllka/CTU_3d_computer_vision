@@ -30,11 +30,9 @@ if __name__ == "__main__":
 
     # imgs_order = [7, 11, 3, 6, 10, 2, 5, 9, 1, 4, 8, 0]
     # imgs_order = [5, 6, 0, 1, 2, 3, 4, 7, 8, 9, 10, 11]
-    pairs = ((7, 11),
-             (0, 1), (0, 4), (4, 5), (4, 8), (8, 9),
-             (1, 2), (1, 5), (5, 6), (5, 9), (9, 10),
-             (2, 3), (2, 6), (6, 7), (6, 10), (10, 11),
-             (3, 7))
+    pairs = ((0, 1), (1, 2), (4, 5), (8, 9),
+             (1, 2), (5, 6), (5, 9), (9, 10),
+             (2, 6), (6, 7), (10, 11))
 
     imgs_order = [7, 11]
     cameras = dict()
@@ -194,7 +192,8 @@ if __name__ == "__main__":
 
     scipy.io.savemat('stereo_in.mat', {'task': task})
     print("matlab functions running...")
-    os.system('matlab -nodisplay -nosplash -nodesktop -r "run(\'test_gcs.m\');exit;"')
+    os.system(
+            'matlab -nodisplay -nosplash -nodesktop -r "run(\'test_gcs.m\');exit;"')
     flab.test_gcs(nargout=0)
     print("stereo matching...")
 
@@ -205,6 +204,12 @@ if __name__ == "__main__":
         Di = D[i, 0]
         im_a_r = imgs[i][0]
         im_b_r = imgs[i][1]
+
+        plt.imshow(im_a_r)
+        plt.show()
+
+        plt.imshow(im_b_r)
+        plt.show()
 
         Ha_inv = np.linalg.inv(Hs[i][0])
         Hb_inv = np.linalg.inv(Hs[i][1])
@@ -229,9 +234,23 @@ if __name__ == "__main__":
                               cameras[pairs[i][1]].P,
                               pixs1_real,
                               pixs2_real)
+        tmp = p2e(tmp)
+        tmp = tmp.T[tmp.T[:, -1].argsort()[::-1]].T[:,
+              int(tmp.shape[1] * 2.5 / 100):-int(tmp.shape[1] * 2.5 / 100)]
 
-        X = np.append(X, p2e(tmp), axis=1)
-        print("next {}".format(i))
+        g = ge.GePly('out_{}_{}.ply'.format(pairs[i][0], pairs[i][1]))
+        g.points(tmp)
+
+        for i in range(NUM_OF_IMGS):
+            # g.points(np.array([0, 0, 0]).reshape(3, 1), color=np.array([255.0, .0, .0]).reshape(3, 1))
+            R = cameras[imgs_order[i]].R
+            t = cameras[imgs_order[i]].t
+            g.points((R.T @ -t).reshape(3, 1),
+                     color=np.array([255.0, .0, .0]).reshape(3, 1))
+        g.close()
+
+        X = np.append(X, tmp, axis=1)
+
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -260,14 +279,14 @@ if __name__ == "__main__":
     #     array_t.append(R.T @ -t)
     # plot_cameras(ax, array_C, array_t, imgs_order)
     # plot points
-    ax.plot3D(X[0], X[1], X[2], 'b,', )
+    # ax.plot3D(X[0], X[1], X[2], 'b,', )
     # ax.plot3D(new_Xs[0], new_Xs[1], new_Xs[2], 'g.')
-    ax.plot3D(0, 0, 0, "r.")
-    plt.show()
+    # ax.plot3D(0, 0, 0, "r.")
+    # plt.show()
 
     #  make a point cloud
 
-    g = ge.GePly('out.ply')
+    g = ge.GePly('out_general.ply')
     g.points(
             X)  # Xall contains euclidean points (3xn matrix), ColorAll RGB colors (3xn or 3x1, optional)
     for i in range(NUM_OF_IMGS):
